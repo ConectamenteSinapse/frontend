@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ConectaMente - Login</title>
+
+    <link rel="stylesheet" href="../public/css/login.css">
+</head>
+
+<body>
+
+    <img src="../public/images/fundo.png" alt="fundo" class="fundo">
+
+    <!-- Botão voltar -->
+    <a href="#" class="botao-voltar">
+        <img src="../public/images/seta.png" alt="Voltar"> 
+    </a>
+
+    <!-- Conteúdo principal -->
+    <main class="login-container">
+
+        <!-- Logo -->
+        <img 
+            src="../public/images/logo.png" 
+            alt="Logo ConectaMente" 
+            class="logo"
+        >
+
+        <!-- Título -->
+        <h1>Login</h1>
+
+        <!-- Formulário -->
+        <form id="formLogin">
+
+            <!-- E-mail -->
+            <div class="campo">
+
+                <label for="email">
+                    ✉ <span>E-mail</span>
+                </label>
+
+                <input 
+                    type="email"
+                    id="email"
+                    placeholder="lucas@gmail.com"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Senha -->
+            <div class="campo">
+
+                <label for="senha">
+                    <img src="../public/images/cadeado.png" alt="senha" >  
+                    <span>Senha</span>
+                </label>
+
+                <input 
+                    type="password"
+                    id="senha"
+                    placeholder="********"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Esqueci a senha -->
+            <a href="#" class="esqueci-senha">
+                Esqueceu a senha?
+            </a>
+
+
+            <!-- Botão entrar -->
+            <button type="submit" class="botao-entrar">
+                Entrar
+            </button>
+
+        </form>
+
+
+        <!-- Criar conta -->
+        <p class="criar-conta">
+            Não tem uma conta?
+            <a href="#">Criar conta</a>
+        </p>
+
+    </main>
+
+
+    <script src="/js/login.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,498 @@
+/* =========================
+   CONFIGURAÇÕES GERAIS
+========================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+
+    font-family: Arial, Helvetica, sans-serif;
+
+    background:
+        radial-gradient(circle at 50% 100%, #00a9e8 0%, transparent 35%),
+        linear-gradient(135deg, #03194f, #0055c7, #00a9e8);
+
+    color: white;
+
+    overflow-x: hidden;
+}
+
+
+/* =========================
+   EFEITOS DO FUNDO
+========================= */
+.fundo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    
+    width: 100vw;
+    height: 100vh;
+
+    object-fit: cover;
+    z-index: -2;
+}
+
+
+body::before {
+    content: "";
+    
+
+    position: fixed;
+
+    width: 500px;
+    height: 500px;
+
+    top: -150px;
+    right: -100px;
+
+    background: #0043a5;
+
+    opacity: 0.35;
+
+    border-radius: 50%;
+
+    filter: blur(80px);
+
+    z-index: -1;
+}
+
+
+body::after {
+    content: "";
+
+    position: fixed;
+
+    width: 450px;
+    height: 450px;
+
+    bottom: -150px;
+    left: -100px;
+
+    background: #00bfff;
+
+    opacity: 0.25;
+
+    border-radius: 50%;
+
+    filter: blur(90px);
+
+    z-index: -1;
+}
+
+
+/* =========================
+   BOTÃO VOLTAR
+========================= */
+
+.botao-voltar {
+    position: absolute;
+
+    top: 25px;
+    left: 55px;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 55px;
+
+    font-weight: 300;
+
+    transform: rotate(0deg);
+
+    transition: 0.2s;
+}
+
+.botao-voltar:hover {
+    transform: translateX(-5px);
+}
+
+
+/* =========================
+   CONTAINER
+========================= */
+
+.login-container {
+
+    width: 100%;
+    max-width: 700px;
+
+    margin: 0 auto;
+
+    padding: 25px 30px 40px;
+
+    text-align: center;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+}
+
+
+/* =========================
+   LOGO
+========================= */
+
+.logo {
+
+    width: 190px;
+
+    max-width: 60%;
+
+    margin-top: 0;
+
+    margin-bottom: 25px;
+
+    object-fit: contain;
+}
+
+
+/* =========================
+   TÍTULO
+========================= */
+
+h1 {
+
+    font-size: 64px;
+
+    font-weight: 700;
+
+    margin-bottom: 45px;
+
+    color: white;
+}
+
+
+/* =========================
+   FORMULÁRIO
+========================= */
+
+form {
+
+    width: 100%;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+}
+
+
+/* =========================
+   CAMPOS
+========================= */
+
+.campo {
+
+    width: 100%;
+
+    background: #f8f8f8;
+
+    border-radius: 35px;
+
+    padding: 22px 35px;
+
+    margin-bottom: 25px;
+
+    text-align: left;
+
+    box-shadow:
+        0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+
+/* Label */
+
+.campo label {
+
+    display: block;
+
+    color: #06265e;
+
+    font-size: 28px;
+
+    font-weight: bold;
+
+    margin-bottom: 15px;
+}
+
+
+/* Ícone */
+
+.campo label:first-letter {
+
+    color: #0062c9;
+}
+
+
+/* Input */
+
+.campo input {
+
+    width: 100%;
+
+    border: none;
+
+    outline: none;
+
+    background: transparent;
+
+    font-size: 27px;
+
+    font-weight: 600;
+
+    color: #777;
+}
+
+
+/* Placeholder */
+
+.campo input::placeholder {
+
+    color: #777;
+
+    opacity: 1;
+}
+
+
+/* =========================
+   ESQUECI SENHA
+========================= */
+
+.esqueci-senha {
+
+    width: 100%;
+
+    text-align: left;
+
+    margin-top: -5px;
+
+    margin-bottom: 35px;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 24px;
+}
+
+.esqueci-senha:hover {
+
+    text-decoration: underline;
+}
+
+
+/* =========================
+   BOTÃO ENTRAR
+========================= */
+
+.botao-entrar {
+
+    width: 100%;
+
+    height: 100px;
+
+    border: none;
+
+    border-radius: 50px;
+
+    background: linear-gradient(
+        180deg,
+        #ffc400,
+        #ffb000
+    );
+
+    color: #06265e;
+
+    font-size: 32px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 7px 0 #0871d1,
+        0 12px 20px rgba(0, 0, 0, 0.25);
+
+    transition: 0.15s;
+}
+
+
+/* Quando passa o mouse */
+
+.botao-entrar:hover {
+
+    transform: translateY(-2px);
+
+    filter: brightness(1.05);
+}
+
+
+/* Quando clica */
+
+.botao-entrar:active {
+
+    transform: translateY(5px);
+
+    box-shadow:
+        0 2px 0 #0871d1;
+}
+
+
+/* =========================
+   CRIAR CONTA
+========================= */
+
+.criar-conta {
+
+    margin-top: 40px;
+
+    font-size: 25px;
+
+    color: white;
+}
+
+
+.criar-conta a {
+
+    color: white;
+
+    font-weight: bold;
+
+    text-decoration: none;
+}
+
+
+.criar-conta a:hover {
+
+    text-decoration: underline;
+}
+
+
+/* =========================
+   RESPONSIVIDADE
+========================= */
+
+@media (max-width: 768px) {
+
+    .botao-voltar {
+
+        left: 25px;
+
+        top: 15px;
+
+        font-size: 45px;
+    }
+
+
+    .login-container {
+
+        padding: 25px 20px 30px;
+    }
+
+
+    .logo {
+
+        width: 160px;
+
+        margin-top: 20px;
+    }
+
+
+    h1 {
+
+        font-size: 48px;
+
+        margin-bottom: 35px;
+    }
+
+
+    .campo {
+
+        padding: 18px 25px;
+
+        border-radius: 28px;
+    }
+
+
+    .campo label {
+
+        font-size: 22px;
+    }
+
+
+    .campo input {
+
+        font-size: 21px;
+    }
+
+
+    .esqueci-senha {
+
+        font-size: 20px;
+    }
+
+
+    .botao-entrar {
+
+        height: 80px;
+
+        font-size: 27px;
+    }
+
+
+    .criar-conta {
+
+        font-size: 20px;
+    }
+}
+
+
+@media (max-width: 450px) {
+
+    .logo {
+
+        width: 140px;
+    }
+
+
+    h1 {
+
+        font-size: 40px;
+    }
+
+
+    .campo {
+
+        padding: 16px 20px;
+    }
+
+
+    .campo label {
+
+        font-size: 20px;
+    }
+
+
+    .campo input {
+
+        font-size: 18px;
+    }
+
+
+    .botao-entrar {
+
+        height: 70px;
+
+        font-size: 24px;
+    }
+}
