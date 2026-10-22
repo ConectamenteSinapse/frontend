@@ -1,0 +1,131 @@
+
+.pagina {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 28px 24px 55px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-image: url("/images/fundo-conectamente.png");
+  background-size: cover;
+  background-position: center;
+  font-family: Arial, sans-serif;
+}
+
+.voltar {
+  position: absolute;
+  top: 35px;
+  left: 6%;
+  color: white;
+  font-size: 42px;
+  line-height: 1;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.logo {
+  width: 260px;
+  max-width: 45vw;
+  height: 150px;
+  object-fit: contain;
+  margin-bottom: 18px;
+}
+
+.painel {
+  width: 100%;
+  max-width: 650px;
+  box-sizing: border-box;
+  padding: 35px 45px 45px;
+  background: white;
+  border: 7px solid #0758c9;
+  border-radius: 65px;
+}
+
+.painel h1 {
+  margin: 0 0 15px;
+  color: #0860ca;
+  font-size: 34px;
+  text-align: center;
+}
+
+.descricao {
+  margin: 0 0 30px;
+  color: #0755a9;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formulario label {
+  color: #0755a9;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.formulario input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 15px;
+  border: 2px solid #9ac9ed;
+  border-radius: 10px;
+  outline: none;
+  font-size: 16px;
+}
+
+.formulario input:focus {
+  border-color: #0860ca;
+}
+
+.continuar {
+  margin-top: 20px;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  background: #ffda55;
+  color: #173b80;
+  font-size: 19px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.continuar:hover {
+  background: #ffd02c;
+}
+
+@media (max-width: 600px) {
+  .pagina {
+    padding: 25px 12px;
+  }
+
+  .voltar {
+    top: 25px;
+    left: 18px;
+    font-size: 32px;
+  }
+
+  .logo {
+    height: 125px;
+  }
+
+  .painel {
+    padding: 28px 20px 32px;
+    border-width: 5px;
+    border-radius: 42px;
+  }
+
+  .painel h1 {
+    font-size: 27px;
+  }
+}
+
+.iconeVoltar {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}

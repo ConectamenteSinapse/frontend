@@ -1,0 +1,155 @@
+
+.pagina {
+  min-height: 100vh;
+  padding: 35px 6%;
+  background-image: url("/images/fundo-conectamente.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.voltar {
+  position: absolute;
+  top: 30px;
+  left: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconeVoltar {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.logo {
+  width: 180px;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 25px;
+}
+
+.painel {
+  width: 100%;
+  max-width: 850px;
+  padding: 35px;
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+
+.painel h1 {
+  color: #173c67;
+  font-size: 28px;
+  margin: 0 0 12px;
+}
+
+.descricao {
+  color: #555;
+  margin-bottom: 30px;
+  font-size: 16px;
+}
+
+.grafico {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.eixoY {
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 8px 0 30px;
+  color: #555;
+  font-size: 12px;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grade {
+  stroke: #dce4ec;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+
+.linha {
+  fill: none;
+  stroke: #2878c8;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ponto {
+  fill: #fff;
+  stroke: #2878c8;
+  stroke-width: 3;
+}
+
+.eixoX {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: #555;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.legenda {
+  margin-top: 25px;
+  color: #173c67;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .pagina {
+    padding: 75px 15px 25px;
+  }
+
+  .voltar {
+    top: 20px;
+    left: 18px;
+  }
+
+  .logo {
+    width: 145px;
+  }
+
+  .painel {
+    padding: 22px 12px;
+  }
+
+  .painel h1 {
+    font-size: 22px;
+  }
+
+  .descricao {
+    font-size: 14px;
+  }
+
+  .eixoY {
+    font-size: 10px;
+    height: 180px;
+  }
+
+  .eixoX {
+    font-size: 9px;
+  }
+}
