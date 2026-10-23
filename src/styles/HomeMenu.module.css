@@ -1,0 +1,135 @@
+/* Container Principal */
+.container {
+  min-height: 100vh;
+  width: 100%;
+  background-image: url('/images/fundo.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #1b82f6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 32px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Cabeçalho esticado para permitir que o avatar vá totalmente até o canto */
+.cabecalho {
+  width: 100%;
+  max-width: 800px; /* Aumentado para dar espaço nas pontas */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin-top: 10px;
+  margin-bottom: 24px;
+}
+
+/* Logo Aumentada */
+.logo {
+  height: 120px; /* Aumentado de 90px para 120px */
+  object-fit: contain;
+}
+
+/* Avatar Jogado Mais para o Canto e Aumentado */
+.avatarContainer {
+  position: absolute;
+  right: -10px; /* Jogado totalmente para a extremidade direita */
+  top: 40%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.avatar {
+  width: 85px;  /* Aumentado de 60px para 85px */
+  height: 85px; /* Aumentado de 60px para 85px */
+  object-fit: contain;
+  display: block;
+}
+
+/* Saudação Descida */
+.saudacao {
+  text-align: center;
+  margin-top: 10px;  /* Espaçamento extra */
+  margin-bottom: 36px; /* Empurra os botões mais para baixo */
+}
+
+.saudacao h1 {
+  color: #ffffff;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Grid e Botões Maiores e Mais Espaçados */
+.menuGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 22px; /* Maior espaçamento entre os cards */
+  width: 100%;
+  max-width: 580px; /* Aumentada a largura max dos botões de 480px para 580px */
+}
+
+.cardMenu {
+  background-color: #ffffff;
+  border-radius: 28px; /* Bordas mais arredondadas e amigáveis */
+  padding: 22px 28px;  /* Card mais alto e espaçoso por dentro */
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  box-shadow: 0px 10px 22px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cardMenu:hover {
+  transform: translateY(-4px);
+  box-shadow: 0px 14px 26px rgba(0, 0, 0, 0.18);
+}
+
+/* Ícone da Esquerda Maior */
+.iconeCirculo {
+  width: 68px;  /* Aumentado de 56px para 68px */
+  height: 68px; /* Aumentado de 56px para 68px */
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1d62f0 0%, #0042ba 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 20px;
+}
+
+/* Textos Aumentados */
+.textosCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.textosCard h2 {
+  color: #102a43;
+  font-size: 1.45rem; /* Fonte do título do botão maior */
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.textosCard p {
+  color: #627d98;
+  font-size: 1.05rem; /* Subtítulo maior */
+  margin: 0;
+}
+
+/* Seta da Direita Aumentada */
+.setaCirculo {
+  width: 44px;  /* Aumentado */
+  height: 44px; /* Aumentado */
+  border-radius: 50%;
+  background-color: #CBE5FC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
