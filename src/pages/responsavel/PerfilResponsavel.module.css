@@ -1,0 +1,114 @@
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-image: url("/images/fundo-conectamente.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.card {
+  width: 100%;
+  max-width: 620px;
+  min-height: 480px;
+  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+}
+
+.logoImage {
+  display: block;
+  width: 260px;
+  max-width: 85%;
+  height: auto;
+  object-fit: contain;
+}
+
+.subtituloLogo {
+  width: 218px;
+  max-width: 85%;
+  margin-top: -2px;
+  padding: 5px 12px;
+  border: 3px solid white;
+  border-top-color: white;
+  border-radius: 18px;
+  color: white;
+  font-size: 13px;
+  text-align: center;
+}
+
+
+.card h1 {
+  margin: 0;
+  color: white;
+  font-size: clamp(22px, 4vw, 30px);
+}
+
+.contasButton,
+.sairButton {
+  width: 100%;
+  max-width: 340px;
+  min-height: 54px;
+  padding: 14px 22px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, filter 0.2s;
+}
+
+.contasButton {
+  color: #173d82;
+  background: white;
+}
+
+.sairButton {
+  color: #292300;
+  background: #ffdc4a;
+}
+
+.contasButton:hover,
+.sairButton:hover {
+  filter: brightness(0.95);
+  transform: translateY(-2px);
+}
+
+.contasButton:focus-visible,
+.sairButton:focus-visible {
+  outline: 3px solid #8ed8ff;
+  outline-offset: 4px;
+}
+
+@media (max-width: 480px) {
+  .card {
+    min-height: 420px;
+    padding: 32px 20px;
+  }
+
+  .logo {
+    font-size: 25px;
+  }
+}
