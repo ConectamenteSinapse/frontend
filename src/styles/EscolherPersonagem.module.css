@@ -1,0 +1,271 @@
+.pagina {
+  min-height: 100vh;
+  width: 100%;
+  background-image: url("/images/fundo_2.png");
+  background-size: cover;
+  background-position: center;
+  background-color: #0875ed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px 32px;
+  box-sizing: border-box;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* BOTÃO VOLTAR NO CANTO SUPERIOR ESQUERDO */
+.botaoVoltar {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  z-index: 10;
+}
+
+.botaoVoltar:hover {
+  transform: scale(1.1);
+}
+
+.iconeVoltar {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  display: block;
+}
+
+/* LOGO NO CANTO SUPERIOR DIREITO */
+.conteudoAzul {
+  position: absolute;
+  right: 20px;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.logo {
+  width: 120px;
+  height: 90px;
+  object-fit: contain;
+  display: block;
+}
+
+/* CABEÇALHO / TÍTULO (imagem escolher.png) */
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 24px;
+}
+
+.titulo {
+  margin: 0;
+  line-height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.imgTitulo {
+  width: 440px;
+  max-width: 85vw;
+  height: auto;
+  display: block;
+}
+
+/* SELETOR DE GÉNERO */
+.seletorGenero {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  margin-bottom: 28px;
+}
+
+.opcaoGenero {
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.bolinha {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.bolinhaVermelha {
+  background-color: #e53935;
+  border-color: #ffffff;
+}
+
+.bolinhaBranca {
+  background-color: #ffffff;
+  border-color: #ffffff;
+}
+
+/* CARDS DE PERSONAGENS */
+.containerCards {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 36px;
+  width: 100%;
+  max-width: 520px;
+  justify-content: center;
+}
+
+.cardPersonagem {
+  background-color: #ffffff;
+  border-radius: 24px;
+  width: 210px;
+  height: 290px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 14px;
+  box-sizing: border-box;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  border: 4px solid transparent;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+.cardPersonagem:hover {
+  transform: translateY(-4px);
+}
+
+.cardSelecionado {
+  border-color: #0052cc;
+  box-shadow: 0 12px 24px rgba(0, 82, 204, 0.3);
+}
+
+.palco {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  position: relative;
+}
+
+.imgPersonagem {
+  height: 160px;
+  object-fit: contain;
+  z-index: 2;
+}
+
+.pedestal {
+  width: 110px;
+  height: 22px;
+  background-color: #e2e8f0;
+  border-radius: 50%;
+  margin-top: -12px;
+  z-index: 1;
+}
+
+.tagSelecionado {
+  background-color: #0052cc;
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  width: 100%;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.miniIconeHead {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* BOTÃO COMEÇAR (imagem botao.png, sem fundo do botão) */
+.botaoComecar {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  border-radius: 0;
+  cursor: pointer;
+  line-height: 0;
+  transition: transform 0.2s;
+}
+
+.botaoComecar:hover {
+  background: none;
+  transform: translateY(-3px) scale(1.02);
+}
+
+.imgComecar {
+  width: 380px;
+  max-width: 85vw;
+  height: auto;
+  display: block;
+}
+
+/* TELAS PEQUENAS */
+@media (max-width: 600px) {
+  .pagina {
+    padding-top: 20px;
+  }
+
+  .botaoVoltar {
+    left: 8px;
+    top: 8px;
+  }
+
+  .iconeVoltar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .conteudoAzul {
+    right: 8px;
+    top: 4px;
+  }
+
+  .logo {
+    width: 84px;
+    height: 64px;
+  }
+
+  .cabecalho {
+    margin-top: 56px; /* desce o título para não ficar embaixo da seta e da logo */
+  }
+
+  .containerCards {
+    gap: 12px;
+  }
+
+  .cardPersonagem {
+    width: 46%;
+    height: 260px;
+  }
+}

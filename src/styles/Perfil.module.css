@@ -1,0 +1,491 @@
+.pagina {
+  min-height: 100vh;
+  width: 100%;
+  background-image: url("/images/fundo.png");
+  background-size: cover;
+  background-position: center;
+  background-color: #0875ed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 20px 24px;
+  box-sizing: border-box;
+}
+
+/* CABEÇALHO TOPO: seta à esquerda, título no centro, logo à direita */
+.cabecalhoTopo {
+  width: 100%;
+  max-width: 1080px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* pontas com a mesma largura = título sempre centralizado */
+  align-items: center;
+  min-height: 80px;
+  margin-bottom: 8px;
+}
+
+.botaoVoltar {
+  justify-self: start;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #0d47a1;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s;
+}
+
+.botaoVoltar:hover {
+  transform: scale(1.05);
+}
+
+.iconeVoltar {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+}
+
+.tituloTopo {
+  color: #ffffff;
+  font-size: 2.4rem;
+  font-weight: 800;
+  margin: 0;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* LOGO (canto direito) */
+.conteudoAzul {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo {
+  height: 64px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+/* PAINEL BRANCO PRINCIPAL */
+.painelPrincipal {
+  width: 100%;
+  max-width: 1080px;
+  background-color: #ffffff;
+  border-radius: 28px;
+  padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  gap: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* COLUNA ESQUERDA */
+.colunaEsquerda {
+  flex: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* CARD USUÁRIO */
+.cardUsuario {
+  background-color: #e3f2fd;
+  border-radius: 20px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatarMiniContainer {
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  background-color: #90caf9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatarMini {
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+}
+
+.infoUsuario {
+  flex: 1;
+}
+
+.nomeUsuario {
+  margin: 0 0 6px 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0d1b2a;
+}
+
+.linhaBadges {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badgeNivel {
+  background-color: #bbdefb;
+  color: #1565c0;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.badgeEstrelas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.botaoEditar {
+  background-color: #e3f2fd;
+  border: 2px solid #90caf9;
+  border-radius: 12px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #0052cc;
+  transition: background 0.2s;
+}
+
+.botaoEditar:hover {
+  background-color: #bbdefb;
+}
+
+/* CARD SUAS ESTRELAS */
+.cardEstrelas {
+  background-color: #f0f7ff;
+  border-radius: 20px;
+  padding: 18px 20px;
+}
+
+.cabecalhoEstrelas {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tituloEstrelas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tituloEstrelas h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0d1b2a;
+}
+
+.fracaoEstrelas {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0d1b2a;
+}
+
+.containerBarraEstrelas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.barraEstrelasFundo {
+  flex: 1;
+  height: 16px;
+  background-color: #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.barraEstrelasPreenchimento {
+  height: 100%;
+  background: linear-gradient(90deg, #ffb703 0%, #ff9100 100%);
+  border-radius: 12px;
+}
+
+.porcentagemTexto {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0d1b2a;
+}
+
+.subtextoRecompensa {
+  margin: 8px 0 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* CARD CÔMODOS */
+.cardComodos {
+  background-color: #f0f7ff;
+  border-radius: 20px;
+  padding: 18px 20px;
+}
+
+.cabecalhoComodos {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.tituloComodos {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tituloComodos h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0d1b2a;
+}
+
+.statusComodosTexto {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.gridComodos {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.itemComodo {
+  border-radius: 16px;
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  min-height: 110px;
+}
+
+.imagemComodoContainer {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.imgComodo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.nomeComodo {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #0d1b2a;
+  margin: 4px 0;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* ESTADOS DOS CÔMODOS */
+.concluido {
+  background-color: #e8f5e9;
+}
+.concluido .statusBadge {
+  color: #2e7d32;
+}
+
+.andamento {
+  background-color: #fff8e1;
+}
+.andamento .statusBadge {
+  color: #ed6c02;
+}
+
+.nao_iniciado {
+  background-color: #e2e8f0;
+}
+.nao_iniciado .statusBadge {
+  color: #64748b;
+}
+
+/* COLUNA DIREITA */
+.colunaDireita {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* CARD PERSONAGEM */
+.cardPersonagem {
+  background: linear-gradient(180deg, #b3e5fc 0%, #e1f5fe 100%);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tituloPersonagem {
+  margin: 0 0 10px 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0d1b2a;
+}
+
+.palcoPersonagem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.imgPersonagem {
+  height: 140px;
+  object-fit: contain;
+  z-index: 2;
+}
+
+.pedestal {
+  width: 120px;
+  height: 24px;
+  background-color: #81d4fa;
+  border-radius: 50%;
+  margin-top: -12px;
+  z-index: 1;
+}
+
+.caixaTraje {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 12px 16px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.rotuloTraje {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.nomeTraje {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0d1b2a;
+  margin-bottom: 8px;
+}
+
+.botaoTrocar {
+  width: 100%;
+  background-color: #1890ff;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(24, 144, 255, 0.3);
+  transition: background 0.2s;
+}
+
+.botaoTrocar:hover {
+  background-color: #096dd9;
+}
+
+/* CARDS DE AÇÃO */
+.cardAcao {
+  background-color: #f0f7ff;
+  border: none;
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.cardAcao:hover {
+  background-color: #e3f2fd;
+  transform: translateY(-2px);
+}
+
+.esquerdaAcao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.esquerdaAcao span {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0d1b2a;
+}
+
+/* BOTÃO SALVAR */
+.botaoSalvar {
+  background-color: #0052cc;
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 16px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 82, 204, 0.3);
+  transition: background 0.2s, transform 0.2s;
+  margin-top: 4px;
+}
+
+.botaoSalvar:hover {
+  background-color: #003d99;
+  transform: translateY(-2px);
+}

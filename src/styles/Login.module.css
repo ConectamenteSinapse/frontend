@@ -1,0 +1,354 @@
+
+.pagina {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* PAINEL AZUL */
+
+.painelAzul {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 35px;
+  color: rgb(255, 255, 255);
+  background-image: url('/images/fundo3.png');
+}
+
+.decoracao {
+  position: absolute;
+  width: 700px;
+  height: 700px;
+  border: 70px solid rgb(0 150 255 / 12%);
+  border-radius: 42%;
+  transform: rotate(-35deg);
+  left: -350px;
+  bottom: -430px;
+  pointer-events: none;
+}
+
+.conteudoAzul {
+  width: 100%;
+  max-width: 590px;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.logo {
+  display: block;
+  width: min(82%, 480px);
+  max-height: 330px;
+  object-fit: contain;
+  margin: 0 auto 35px;
+}
+
+.frase {
+  font-size: clamp(18px, 2vw, 29px);
+  line-height: 1.35;
+  margin: 0 0 50px;
+}
+
+.beneficios {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.beneficio {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.beneficio p {
+  font-size: clamp(11px, 1.1vw, 17px);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.iconeBeneficio {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.azul {
+  background: #00b7ef;
+}
+
+.amarelo {
+  background: #ffc400;
+}
+
+.verde {
+  background: #42c77b;
+}
+
+.roxo {
+  background: #9160f5;
+}
+
+/* PAINEL AMARELO */
+
+.painelAmarelo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 55px clamp(28px, 5.5vw, 90px);
+  color: rgb(3, 22, 91);
+  background:
+    radial-gradient(
+      ellipse at top right,
+      rgb(255 255 255 / 20%),
+      transparent 40%
+    ),
+    linear-gradient(145deg, #f7f7f7);
+}
+
+.conteudoLogin {
+  width: 100%;
+  max-width: 600px;
+}
+
+.cabecalho {
+  margin-bottom: 34px;
+}
+
+.cabecalho h1 {
+  font-size: clamp(46px, 5vw, 72px);
+  line-height: 1.1;
+  font-weight: 800;
+  margin: 0 0 16px;
+}
+
+.cabecalho p {
+  font-size: clamp(17px, 1.6vw, 24px);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.campo {
+  min-height: 125px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 24px;
+  border-radius: 32px;
+  background: #ffffff;
+  color: #0649bb;
+  box-shadow: 0 10px 22px rgb(129 91 0 / 10%);
+}
+
+.iconeCampo {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: #e5f0ff;
+  color: #0755d9;
+}
+
+.dadosCampo {
+  flex: 1;
+  min-width: 0;
+}
+
+.dadosCampo label {
+  display: block;
+  font-size: 23px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.dadosCampo input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #173c81;
+  font-size: clamp(16px, 1.7vw, 25px);
+  font-weight: 600;
+}
+
+.dadosCampo input::placeholder {
+  color: #8794b3;
+  opacity: 1;
+}
+
+.verSenha {
+  border: none;
+  background: transparent;
+  color: #0755d9;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.esqueciSenha {
+  align-self: flex-start;
+  margin-top: -1px;
+  color: rgb(8, 6, 131);
+  font-size: 22px;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.botaoEntrar {
+  min-height: 102px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  border: 2px solid #FBBF04;
+  border-radius: 60px;
+  background: linear-gradient(110deg, #FBBF04, #FBBF04);
+  color: white;
+  font-size: 35px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgb(128 83 0 / 15%);
+  transition: transform 0.2s, filter 0.2s;
+}
+
+.botaoEntrar:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.criarConta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 28px;
+  font-size: 22px;
+}
+
+.criarConta a {
+  color: #FBBF04;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+/* CELULARES E TELAS MENORES */
+
+@media (max-width: 900px) {
+  .pagina {
+    grid-template-columns: 1fr;
+  }
+
+  .painelAzul {
+    min-height: 330px;
+    padding: 35px 20px;
+  }
+
+  .conteudoAzul {
+    max-width: 500px;
+  }
+
+  .logo {
+    width: min(65%, 260px);
+    max-height: 180px;
+    margin-bottom: 20px;
+  }
+
+  .frase {
+    margin-bottom: 28px;
+  }
+
+  .iconeBeneficio {
+    width: 48px;
+    height: 48px;
+  }
+
+  .painelAmarelo {
+    padding: 45px 24px;
+  }
+
+  .conteudoLogin {
+    max-width: 560px;
+  }
+
+  .cabecalho h1 {
+    font-size: 48px;
+  }
+
+  .campo {
+    min-height: 100px;
+    padding: 17px;
+    border-radius: 24px;
+  }
+
+  .iconeCampo {
+    width: 48px;
+    height: 48px;
+  }
+
+  .dadosCampo label {
+    font-size: 19px;
+    margin-bottom: 10px;
+  }
+
+  .botaoEntrar {
+    min-height: 76px;
+    font-size: 27px;
+  }
+}
+
+@media (max-width: 420px) {
+  .beneficios {
+    gap: 6px;
+  }
+
+  .beneficio p {
+    font-size: 10px;
+  }
+
+  .painelAmarelo {
+    padding: 35px 18px;
+  }
+
+  .campo {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .iconeCampo {
+    width: 42px;
+    height: 42px;
+  }
+
+  .iconeCampo svg {
+    width: 23px;
+  }
+
+  .esqueciSenha,
+  .criarConta {
+    font-size: 16px;
+  }
+
+  .quebra {
+    display: none;
+  }
+}
