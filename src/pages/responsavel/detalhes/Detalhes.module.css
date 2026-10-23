@@ -17,17 +17,16 @@
   position: absolute;
   top: 25px;
   left: 30px;
-  width: 45px;
-  height: 45px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background-color: white;
-  color: #174b8a;
-  font-size: 30px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   text-decoration: none;
-  box-shadow: 0 2px 6px #0002;
+}
+
+.iconeVoltar {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .logo {
@@ -263,10 +262,4 @@
   .botoesModal {
     flex-direction: column;
   }
-}
-
-.iconeVoltar {
-  width: 30px;
-  height: 30px;
-  object-fit: contain;
 }

@@ -37,13 +37,19 @@ export default function Rendimento() {
       </Head>
 
       <main className={styles.pagina}>
-        <Link
-          href="/responsavel/contas"
-          className={styles.voltar}
-          aria-label="Voltar para contas"
-        >
-          
-        </Link>
+        
+      <Link
+        href="/responsavel/contas"
+        className={styles.voltar}
+        aria-label="Voltar para contas"
+      >
+        <img
+          src="/images/majesticons_share.png"
+          alt=""
+          className={styles.iconeVoltar}
+        />
+      </Link>
+
 
         <img
           src="/images/logo.png"
