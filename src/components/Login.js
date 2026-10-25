@@ -21,16 +21,22 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
-  function handleLogin(event) {
-    event.preventDefault();
+  
+function handleLogin(event) {
+  event.preventDefault();
 
-    // Integração futura com o Back-end
-    console.log("E-mail:", email);
-    console.log("Login solicitado");
+  // Direcionamento temporário para testar as telas
+  const perfil = window.prompt(
+    "Escolha o perfil para testar:\n1 - Responsável\n2 - Criança"
+  );
 
-    // Navega diretamente para a rota /menu
+  if (perfil === "1") {
+    router.push("/responsavel");
+  } else if (perfil === "2") {
     router.push("/menu");
   }
+}
+
 
   const beneficios = [
     {

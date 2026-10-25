@@ -14,7 +14,7 @@ export default function Detalhes() {
   const crianca = {
     nome: "LORENZO",
     email: "LORENZODAVID@EMAIL.COM",
-    avatar: "/images/crianca.png",
+    avatar: "/images/perfil.png",
   };
 
   function confirmarExclusao() {
