@@ -1,0 +1,265 @@
+
+.pagina {
+  min-height: 100vh;
+  padding: 30px 20px 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  background-image: url("/images/fundo-conectamente.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  font-family: Arial, sans-serif;
+}
+
+.voltar {
+  position: absolute;
+  top: 25px;
+  left: 30px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-decoration: none;
+}
+
+.iconeVoltar {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.logo {
+  width: 180px;
+  max-width: 60%;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 25px;
+}
+
+.painel {
+  width: 100%;
+  max-width: 650px;
+  padding: 35px 30px;
+  background-color: rgba(255, 255, 255, 0.96);
+  border: 3px solid #174b8a;
+  border-radius: 28px;
+  box-shadow: 0 5px 15px #0002;
+}
+
+.perfil {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.avatar {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  border-radius: 50%;
+  background-color: #e5efff;
+  border: 3px solid #174b8a;
+  margin-bottom: 15px;
+}
+
+.perfil h1 {
+  margin: 5px 0;
+  color: #174b8a;
+  font-size: 28px;
+  overflow-wrap: anywhere;
+}
+
+.perfil p {
+  margin: 6px 0;
+  color: #444;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.perfil .status {
+  margin-top: 12px;
+  font-weight: bold;
+  color: #174b8a;
+}
+
+.acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.botao,
+.confirmar,
+.cancelar {
+  min-height: 48px;
+  padding: 13px 20px;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.botao {
+  background-color: #174b8a;
+  color: white;
+}
+
+.botao:hover,
+.confirmar:hover,
+.cancelar:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.excluir {
+  background-color: #d94343;
+  color: white;
+}
+
+.fundoModal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.55);
+}
+
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 450px;
+  padding: 35px 28px 28px;
+  border-radius: 24px;
+  background-color: white;
+  box-shadow: 0 8px 30px #0003;
+}
+
+.modal h2 {
+  margin: 0 25px 18px 0;
+  color: #174b8a;
+  font-size: 23px;
+  text-align: center;
+}
+
+.modal p {
+  color: #444;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.fechar {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  border: none;
+  background: transparent;
+  color: #555;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.modal label {
+  display: block;
+  margin: 22px 0 8px;
+  color: #174b8a;
+  font-weight: bold;
+}
+
+.campoLimite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.campoLimite input {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 2px solid #b8cce8;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.campoLimite span {
+  color: #444;
+  white-space: nowrap;
+}
+
+.confirmar {
+  background-color: #174b8a;
+  color: white;
+}
+
+.modal > .confirmar {
+  width: 100%;
+}
+
+.botoesModal {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.botoesModal button {
+  flex: 1;
+}
+
+.cancelar {
+  background-color: #e5e5e5;
+  color: #333;
+}
+
+.botoesModal .excluir {
+  border: none;
+  border-radius: 14px;
+  padding: 13px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .pagina {
+    padding: 80px 14px 30px;
+  }
+
+  .voltar {
+    top: 15px;
+    left: 15px;
+  }
+
+  .logo {
+    width: 145px;
+  }
+
+  .painel {
+    padding: 25px 18px;
+    border-radius: 22px;
+  }
+
+  .perfil h1 {
+    font-size: 24px;
+  }
+
+  .modal {
+    padding: 35px 20px 22px;
+  }
+
+  .botoesModal {
+    flex-direction: column;
+  }
+}

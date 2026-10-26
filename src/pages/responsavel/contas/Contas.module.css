@@ -1,0 +1,199 @@
+
+.pagina {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 28px 24px 55px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-image: url("/images/fundo-conectamente.png");
+  background-size: cover;
+  background-position: center;
+  font-family: Arial, sans-serif;
+}
+
+.voltar {
+  position: absolute;
+  top: 35px;
+  left: 6%;
+  color: white;
+  font-size: 42px;
+  line-height: 1;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.logo {
+  width: 260px;
+  max-width: 45vw;
+  height: 150px;
+  object-fit: contain;
+  margin-bottom: 18px;
+}
+
+.painel {
+  width: 100%;
+  max-width: 850px;
+  min-height: 390px;
+  box-sizing: border-box;
+  padding: 0 44px 35px;
+  background: white;
+  border: 7px solid #0758c9;
+  border-radius: 85px;
+}
+
+.cabecalho {
+  position: relative;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.cabecalho h1 {
+  margin: 0;
+  color: #0860ca;
+  font-size: 38px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.adicionar {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #0860ca;
+  font-size: 62px;
+  font-weight: 400;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  min-height: 96px;
+  box-sizing: border-box;
+  padding: 10px 24px;
+  background: #dff5ff;
+  border-radius: 8px;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.25);
+}
+
+.avatar {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 4px solid #0860ca;
+  border-radius: 50%;
+  background: white;
+}
+
+.informacoes {
+  flex: 1;
+  min-width: 0;
+}
+
+.informacoes h2,
+.informacoes p {
+  margin: 0;
+  color: #0755a9;
+  font-size: 19px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.informacoes p {
+  margin-top: 10px;
+}
+
+.detalhes {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  text-decoration: none;
+}
+
+.iconeOlho {
+  width: 48px;
+  height: 48px;
+}
+
+.vazio {
+  padding: 30px 12px;
+  color: #0755a9;
+  font-size: 18px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .pagina {
+    padding: 25px 12px;
+  }
+
+  .voltar {
+    top: 25px;
+    left: 18px;
+    font-size: 32px;
+  }
+
+  .logo {
+    height: 125px;
+    margin-bottom: 15px;
+  }
+
+  .painel {
+    min-height: 350px;
+    padding: 0 15px 25px;
+    border-width: 5px;
+    border-radius: 42px;
+  }
+
+  .cabecalho {
+    min-height: 65px;
+  }
+
+  .cabecalho h1 {
+    font-size: 30px;
+  }
+
+  .adicionar {
+    font-size: 48px;
+  }
+
+  .card {
+    gap: 12px;
+    padding: 10px;
+  }
+
+  .avatar {
+    width: 55px;
+    height: 55px;
+  }
+
+  .informacoes h2,
+  .informacoes p {
+    font-size: 13px;
+  }
+
+  .detalhes,
+  .iconeOlho {
+    width: 36px;
+    height: 36px;
+  }
+}
