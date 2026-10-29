@@ -39,12 +39,12 @@ async function handleLogin(event) {
     });
 
     const { token, usuario } = resposta.data;
-    
-    // Salvar o token para as próximas requisições
-    localStorage.setItem("token", token);
 
-    // Salvar os dados do usuário autenticado
+    // Salvar o token e o perfil do usuário autenticado
+    localStorage.setItem("token", token);
     localStorage.setItem("usuario", JSON.stringify(usuario));
+
+    console.log("Perfil autenticado:", usuario.perfil);
 
     // Redirecionar de acordo com o perfil
     if (usuario.perfil === "responsavel") {

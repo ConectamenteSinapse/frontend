@@ -51,55 +51,105 @@ export default function Cadastro() {
     router.push("/");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErro("");
+  
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setErro("");
 
-    if (tipoCadastro === "responsavel") {
-      if (formData.senhaResponsavel !== formData.confirmarSenhaResponsavel) {
-        setErro("As senhas do responsável não coincidem.");
-        return;
-      }
-      // Se preencheu o responsável, passa para a aba da criança para completar o cadastro conjunto
-      setTipoCadastro("crianca");
+  // Primeira etapa: validar os dados do responsável
+  if (tipoCadastro === "responsavel") {
+    if (formData.senhaResponsavel !== formData.confirmarSenhaResponsavel) {
+      setErro("As senhas do responsável não coincidem.");
       return;
     }
 
-    // Validação da criança
-    if (formData.senhaCrianca !== formData.confirmarSenhaCrianca) {
-      setErro("As senhas da criança não coincidem.");
-      return;
-    }
+    setTipoCadastro("crianca");
+    return;
+  }
 
-    // Envio final para a API do back-end
-    setCarregando(true);
-    try {
-      const payload = {
-        responsavel: {
-          nome: formData.nomeResponsavel,
-          email: formData.emailResponsavel,
-          senha: formData.senhaResponsavel,
-        },
-        crianca: {
-          nome: formData.nomeCrianca,
-          email: formData.emailCrianca,
-          senha: formData.senhaCrianca,
-        }
-      };
+  // Segunda etapa: validar os dados da criança
+  if (formData.senhaCrianca !== formData.confirmarSenhaCrianca) {
+    setErro("As senhas da criança não coincidem.");
+    return;
+  }
 
-      const resposta = await api.post("/usuarios/cadastro", payload);
-      console.log("Cadastro realizado com sucesso:", resposta.data);
-      router.push("/menu");
-    } catch (error) {
-      if (error.response) {
-        setErro(error.response.data?.mensagem || "Erro ao realizar o cadastro.");
-      } else {
-        setErro("Não foi possível conectar ao servidor.");
-      }
-    } finally {
-      setCarregando(false);
-    }
-  };
+  setCarregando(true);
+
+  const tokenAnterior = localStorage.getItem("token");
+
+  try {
+    // 1. Criar a conta do responsável
+    await api.post("/usuarios", {
+      nome: formData.nomeResponsavel,
+      email: formData.emailResponsavel,
+      senha: formData.senhaResponsavel,
+      perfil: "responsavel",
+    });
+
+    // 2. Fazer login do responsável
+    const loginResponsavel = await api.post("/usuarios/auth", {
+      email: formData.emailResponsavel,
+      senha: formData.senhaResponsavel,
+    });
+
+    console.log("Resposta do login:", loginResponsavel.data);
+    const tokenResponsavel = loginResponsavel.data.token;
+
+    localStorage.setItem("token", tokenResponsavel);
+
+    // 3. Criar o perfil do responsável
+    await api.post("/responsaveis", {});
+
+    // 4. Criar a conta da criança
+    await api.post("/usuarios", {
+      nome: formData.nomeCrianca,
+      email: formData.emailCrianca,
+      senha: formData.senhaCrianca,
+      perfil: "crianca",
+    });
+
+    // 5. Fazer login da criança
+    const loginCrianca = await api.post("/usuarios/auth", {
+      email: formData.emailCrianca,
+      senha: formData.senhaCrianca,
+    });
+
+    const tokenCrianca = loginCrianca.data.token;
+
+    localStorage.setItem("token", tokenCrianca);
+
+    // 6. Criar o perfil da criança
+    await api.post("/criancas", {});
+
+    // 7. Restaurar o token do responsável
+    localStorage.setItem("token", tokenResponsavel);
+
+    // 8. Vincular a criança ao responsável
+    await api.post("/responsaveis/vincular-crianca", {
+      email: formData.emailCrianca,
+      senha: formData.senhaCrianca,
+    });
+
+    // 9. Ir para a página do responsável
+    router.push("/responsavel");
+  } catch (error) {
+    console.error("Erro no cadastro:", error);
+
+    const mensagem =
+      error.response?.data?.mensagem ||
+      error.response?.data?.erro ||
+      "Não foi possível concluir o cadastro. Verifique os dados e a conexão com a API.";
+
+    setErro(
+      typeof mensagem === "string"
+        ? mensagem
+        : "Não foi possível concluir o cadastro."
+    );
+  } finally {
+    setCarregando(false);
+  }
+};
+
 
   return (
     <main className={styles.pagina}>
