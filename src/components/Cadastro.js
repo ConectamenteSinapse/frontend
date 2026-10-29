@@ -6,390 +6,314 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Calendar,
-  List,
-  Heart,
   Smile,
-  Check,
 } from "lucide-react";
 
 import styles from "../styles/Cadastro.module.css";
+import api from "../services/api";
 
 export default function Cadastro() {
   const router = useRouter();
 
-  // Etapa 1: Responsável | Etapa 2: Criança
-  const [etapa, setEtapa] = useState(1);
+  // 'responsavel' ou 'crianca'
+  const [tipoCadastro, setTipoCadastro] = useState("responsavel");
 
-  // Dados dos formulários
+  // Dados dos formulários (agora a criança também usa email e senha)
   const [formData, setFormData] = useState({
     nomeResponsavel: "",
-    email: "",
-    confirmarEmail: "",
-    senha: "",
-    confirmarSenha: "",
+    emailResponsavel: "",
+    senhaResponsavel: "",
+    confirmarSenhaResponsavel: "",
     nomeCrianca: "",
-    idadeCrianca: "",
-    interesseCrianca: "",
-    observacao: "",
+    emailCrianca: "",
+    senhaCrianca: "",
+    confirmarSenhaCrianca: "",
   });
 
-  // Mostrar ou esconder senhas
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [mostrarConfirmarSenha, setMostrarConfirmarSenha] =
-    useState(false);
+  const [mostrarSenhaResp, setMostrarSenhaResp] = useState(false);
+  const [mostrarConfSenhaResp, setMostrarConfSenhaResp] = useState(false);
+  const [mostrarSenhaCrianca, setMostrarSenhaCrianca] = useState(false);
+  const [mostrarConfSenhaCrianca, setMostrarConfSenhaCrianca] = useState(false);
 
-  // Mensagens de validação
   const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-  // Atualizar os campos
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormData((dadosAnteriores) => ({
       ...dadosAnteriores,
       [name]: value,
     }));
-
     setErro("");
   };
 
-  // Avançar para o cadastro da criança
-  const handleAvancarEtapa = (e) => {
+  const handleVoltar = () => {
+    router.push("/");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (
-      formData.email.trim().toLowerCase() !==
-      formData.confirmarEmail.trim().toLowerCase()
-    ) {
-      setErro("Os e-mails não coincidem.");
-      return;
-    }
-
-    if (formData.senha !== formData.confirmarSenha) {
-      setErro("As senhas não coincidem.");
-      return;
-    }
-
     setErro("");
-    setEtapa(2);
-  };
 
-  // Voltar uma etapa ou retornar à página inicial
-  const handleVoltarEtapa = () => {
-    if (etapa === 2) {
-      setEtapa(1);
-      setErro("");
-    } else {
-      router.push("/");
+    if (tipoCadastro === "responsavel") {
+      if (formData.senhaResponsavel !== formData.confirmarSenhaResponsavel) {
+        setErro("As senhas do responsável não coincidem.");
+        return;
+      }
+      // Se preencheu o responsável, passa para a aba da criança para completar o cadastro conjunto
+      setTipoCadastro("crianca");
+      return;
     }
-  };
 
-  // Finalizar cadastro
-  const handleFinalizarCadastro = (e) => {
-    e.preventDefault();
+    // Validação da criança
+    if (formData.senhaCrianca !== formData.confirmarSenhaCrianca) {
+      setErro("As senhas da criança não coincidem.");
+      return;
+    }
 
-    console.log("Dados do cadastro:", formData);
+    // Envio final para a API do back-end
+    setCarregando(true);
+    try {
+      const payload = {
+        responsavel: {
+          nome: formData.nomeResponsavel,
+          email: formData.emailResponsavel,
+          senha: formData.senhaResponsavel,
+        },
+        crianca: {
+          nome: formData.nomeCrianca,
+          email: formData.emailCrianca,
+          senha: formData.senhaCrianca,
+        }
+      };
 
-    // Redirecionamento demonstrativo.
-    // A integração com a API deverá salvar os dados antes disso.
-    router.push("/menu");
+      const resposta = await api.post("/usuarios/cadastro", payload);
+      console.log("Cadastro realizado com sucesso:", resposta.data);
+      router.push("/menu");
+    } catch (error) {
+      if (error.response) {
+        setErro(error.response.data?.mensagem || "Erro ao realizar o cadastro.");
+      } else {
+        setErro("Não foi possível conectar ao servidor.");
+      }
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
     <main className={styles.pagina}>
-      {/* Topo com seta e logo nas extremidades */}
+      {/* CABEÇALHO FIXO NAS EXTREMIDADES */}
       <header className={styles.cabecalhoTopo}>
         <button
           type="button"
-          onClick={handleVoltarEtapa}
+          onClick={handleVoltar}
           className={styles.botaoVoltar}
           aria-label="Voltar"
         >
-          <img
-            src="/images/seta.png"
-            alt=""
-            className={styles.iconeVoltar}
-          />
+          <img src="/images/seta.png" alt="Voltar" className={styles.iconeVoltar} />
         </button>
 
         <div className={styles.logoContainer}>
-          <img
-            src="/images/logo.png"
-            alt="Logo ConectaMente"
-            className={styles.logo}
-          />
+          <img src="/images/logo.png" alt="Logo ConectaMente" className={styles.logo} />
         </div>
       </header>
 
-      {/* Carrossel das duas etapas */}
+      {/* CONTEÚDO CENTRALIZADO */}
       <div className={styles.carrosselContainer}>
-        <div
-          className={`${styles.trilhoFormularios} ${
-            etapa === 2 ? styles.mostrarEtapa2 : ""
-          }`}
-        >
-          {/* ETAPA 1: RESPONSÁVEL */}
-          <section className={styles.cardEtapa}>
-            <h1 className={styles.titulo}>Criar conta</h1>
+        <section className={styles.cardEtapa}>
+          <h1 className={styles.titulo}>
+            {tipoCadastro === "responsavel" ? "Criar conta" : "Cadastrar Criança"}
+          </h1>
 
-            <form
-              onSubmit={handleAvancarEtapa}
-              className={styles.formulario}
-            >
-              <div className={styles.campo}>
-                <User size={22} className={styles.icone} />
+          <form onSubmit={handleSubmit} className={styles.formulario}>
+            {tipoCadastro === "responsavel" ? (
+              /* FORMULÁRIO DO RESPONSÁVEL */
+              <>
+                <div className={styles.campo}>
+                  <User size={22} className={styles.icone} />
+                  <input
+                    type="text"
+                    name="nomeResponsavel"
+                    placeholder="Nome completo"
+                    value={formData.nomeResponsavel}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
 
-                <input
-                  type="text"
-                  name="nomeResponsavel"
-                  placeholder="Nome completo"
-                  autoComplete="name"
-                  value={formData.nomeResponsavel}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+                <div className={styles.campo}>
+                  <Mail size={22} className={styles.icone} />
+                  <input
+                    type="email"
+                    name="emailResponsavel"
+                    placeholder="E-mail"
+                    value={formData.emailResponsavel}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
 
-              <div className={styles.campo}>
-                <Mail size={22} className={styles.icone} />
+                <div className={styles.campo}>
+                  <Lock size={22} className={styles.icone} />
+                  <input
+                    type={mostrarSenhaResp ? "text" : "password"}
+                    name="senhaResponsavel"
+                    placeholder="Senha:"
+                    value={formData.senhaResponsavel}
+                    onChange={handleChange}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className={styles.botaoOlho}
+                    onClick={() => setMostrarSenhaResp((prev) => !prev)}
+                  >
+                    {mostrarSenhaResp ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
 
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="E-mail"
-                  autoComplete="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <Mail size={22} className={styles.icone} />
-
-                <input
-                  type="email"
-                  name="confirmarEmail"
-                  placeholder="Confirmar e-mail"
-                  autoComplete="off"
-                  value={formData.confirmarEmail}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <Lock size={22} className={styles.icone} />
-
-                <input
-                  type={mostrarSenha ? "text" : "password"}
-                  name="senha"
-                  placeholder="Senha"
-                  autoComplete="new-password"
-                  value={formData.senha}
-                  onChange={handleChange}
-                  required
-                />
-
-                <button
-                  type="button"
-                  className={styles.botaoOlho}
-                  onClick={() =>
-                    setMostrarSenha((anterior) => !anterior)
-                  }
-                  aria-label={
-                    mostrarSenha ? "Ocultar senha" : "Mostrar senha"
-                  }
-                >
-                  {mostrarSenha ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
-                </button>
-              </div>
-
-              <div className={styles.campo}>
-                <Lock size={22} className={styles.icone} />
-
-                <input
-                  type={mostrarConfirmarSenha ? "text" : "password"}
-                  name="confirmarSenha"
-                  placeholder="Confirmar senha"
-                  autoComplete="new-password"
-                  value={formData.confirmarSenha}
-                  onChange={handleChange}
-                  required
-                />
-
-                <button
-                  type="button"
-                  className={styles.botaoOlho}
-                  onClick={() =>
-                    setMostrarConfirmarSenha((anterior) => !anterior)
-                  }
-                  aria-label={
-                    mostrarConfirmarSenha
-                      ? "Ocultar confirmação da senha"
-                      : "Mostrar confirmação da senha"
-                  }
-                >
-                  {mostrarConfirmarSenha ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
-                </button>
-              </div>
-
-              {erro && (
-                <p
-                  role="alert"
-                  style={{
-                    color: "#fff",
-                    textAlign: "center",
-                    fontWeight: 700,
-                    margin: "0",
-                  }}
-                >
-                  {erro}
-                </p>
-              )}
-
-              <button type="submit" className={styles.botaoContinuar}>
-                Continuar
-              </button>
-            </form>
-          </section>
-
-          {/* ETAPA 2: CRIANÇA */}
-          <section className={styles.cardEtapa}>
-            <h1 className={styles.titulo}>
-              Agora, vamos cadastrar a criança!
-            </h1>
-
-            <form
-              onSubmit={handleFinalizarCadastro}
-              className={styles.formulario}
-            >
-              <div className={styles.campo}>
-                <User size={22} className={styles.icone} />
-
-                <input
-                  type="text"
-                  name="nomeCrianca"
-                  placeholder="Nome da criança"
-                  value={formData.nomeCrianca}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <Calendar size={22} className={styles.icone} />
-
-                <input
-                  type="number"
-                  name="idadeCrianca"
-                  placeholder="Idade da criança"
-                  min="1"
-                  max="100"
-                  value={formData.idadeCrianca}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <List size={22} className={styles.icone} />
-
-                <select
-                  name="interesseCrianca"
-                  value={formData.interesseCrianca}
-                  onChange={handleChange}
-                  required
-                  className={styles.selectInput}
-                >
-                  <option value="" disabled>
-                    Principal dificuldade da criança
-                  </option>
-                  <option value="jogos">ler</option>
-                  <option value="desenho">escovar os dentes</option>
-                  <option value="musica">lavar as mãos</option>
-                  <option value="matematica">pegar objetos</option>
-                </select>
-              </div>
-
-              <div className={styles.campo}>
-                <Heart size={22} className={styles.icone} />
-
-                <input
-                  type="text"
-                  name="observacao"
-                  placeholder="Observação importante (opcional)"
-                  value={formData.observacao}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <button type="submit" className={styles.botaoContinuar}>
-                Finalizar cadastro
-              </button>
-            </form>
-          </section>
-        </div>
-      </div>
-
-      {/* Indicador de progresso */}
-      <footer className={styles.rodapeProgresso}>
-        <div className={styles.barrasContainer}>
-          <div
-            className={`${styles.barra} ${
-              etapa === 1 ? styles.barraAtiva : ""
-            }`}
-          />
-
-          <div
-            className={`${styles.barra} ${
-              etapa === 2 ? styles.barraAtiva : ""
-            }`}
-          />
-        </div>
-
-        <div className={styles.passosLegenda}>
-          {/* Passo do responsável */}
-          <div
-            className={`${styles.passo} ${
-              etapa === 1 ? styles.passoAtual : ""
-            }`}
-          >
-            {etapa === 2 ? (
-              <div className={styles.iconeCheck}>
-                <Check size={16} color="#ffffff" />
-              </div>
+                <div className={styles.campo}>
+                  <Lock size={22} className={styles.icone} />
+                  <input
+                    type={mostrarConfSenhaResp ? "text" : "password"}
+                    name="confirmarSenhaResponsavel"
+                    placeholder="Confirmar Senha:"
+                    value={formData.confirmarSenhaResponsavel}
+                    onChange={handleChange}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className={styles.botaoOlho}
+                    onClick={() => setMostrarConfSenhaResp((prev) => !prev)}
+                  >
+                    {mostrarConfSenhaResp ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </>
             ) : (
-              <User size={22} color="#ffb703" />
+              /* FORMULÁRIO DA CRIANÇA (Mesmo padrão: Nome, E-mail, Senha, Confirmar Senha) */
+              <>
+                <div className={styles.campo}>
+                  <User size={22} className={styles.icone} />
+                  <input
+                    type="text"
+                    name="nomeCrianca"
+                    placeholder="Nome completo da criança"
+                    value={formData.nomeCrianca}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className={styles.campo}>
+                  <Mail size={22} className={styles.icone} />
+                  <input
+                    type="email"
+                    name="emailCrianca"
+                    placeholder="E-mail da criança"
+                    value={formData.emailCrianca}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className={styles.campo}>
+                  <Lock size={22} className={styles.icone} />
+                  <input
+                    type={mostrarSenhaCrianca ? "text" : "password"}
+                    name="senhaCrianca"
+                    placeholder="Senha:"
+                    value={formData.senhaCrianca}
+                    onChange={handleChange}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className={styles.botaoOlho}
+                    onClick={() => setMostrarSenhaCrianca((prev) => !prev)}
+                  >
+                    {mostrarSenhaCrianca ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+
+                <div className={styles.campo}>
+                  <Lock size={22} className={styles.icone} />
+                  <input
+                    type={mostrarConfSenhaCrianca ? "text" : "password"}
+                    name="confirmarSenhaCrianca"
+                    placeholder="Confirmar Senha:"
+                    value={formData.confirmarSenhaCrianca}
+                    onChange={handleChange}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className={styles.botaoOlho}
+                    onClick={() => setMostrarConfSenhaCrianca((prev) => !prev)}
+                  >
+                    {mostrarConfSenhaCrianca ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </>
             )}
 
-            <span>1. Responsável</span>
-          </div>
+            {erro && (
+              <p role="alert" style={{ color: "#fff", textAlign: "center", fontWeight: 700, margin: 0 }}>
+                {erro}
+              </p>
+            )}
 
-          {/* Passo da criança */}
-          <div
-            className={`${styles.passo} ${
-              etapa === 2 ? styles.passoAtual : ""
-            }`}
-          >
-            <Smile
-              size={22}
-              color={etapa === 2 ? "#ffb703" : "#a8c2e8"}
-            />
+            <button type="submit" className={styles.botaoContinuar} disabled={carregando}>
+              {carregando ? "A processar..." : "Continuar"}
+            </button>
+          </form>
 
-            <span>2. Criança</span>
+          {/* SELETOR INFERIOR DE PERFIS */}
+          <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "24px" }}>
+            <button
+              type="button"
+              onClick={() => setTipoCadastro("responsavel")}
+              style={{
+                background: tipoCadastro === "responsavel" ? "#ffffff" : "rgba(255,255,255,0.2)",
+                color: tipoCadastro === "responsavel" ? "#000" : "#fff",
+                border: "none",
+                padding: "8px 18px",
+                borderRadius: "20px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: "bold",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              }}
+            >
+              <User size={16} /> responsável
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTipoCadastro("crianca")}
+              style={{
+                background: tipoCadastro === "crianca" ? "#ffffff" : "rgba(255,255,255,0.2)",
+                color: tipoCadastro === "crianca" ? "#000" : "#fff",
+                border: "none",
+                padding: "8px 18px",
+                borderRadius: "20px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: "bold",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              }}
+            >
+              <Smile size={16} /> criança
+            </button>
           </div>
-        </div>
-      </footer>
+        </section>
+      </div>
     </main>
   );
 }

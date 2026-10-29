@@ -8,30 +8,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 56px 24px 24px; /* espaço no topo para o título ficar como no desenho */
+  justify-content: space-between;
+  padding: 24px;
   box-sizing: border-box;
   overflow-x: hidden;
   position: relative;
 }
 
 /* CABEÇALHO NAS EXTREMIDADES (seta à esquerda, logo à direita) */
+/* CABEÇALHO NAS EXTREMIDADES (Fixado absoluto nas bordas exatas) */
 .cabecalhoTopo {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 16px 28px;
+  padding: 20px 28px;
   box-sizing: border-box;
   z-index: 10;
-  pointer-events: none; /* o espaço vazio do meio não bloqueia cliques */
+  pointer-events: none; /* Permite cliques livres nas áreas vazias */
 }
 
+.botaoVoltar,
+.logoContainer {
+  pointer-events: auto; /* Reativa os cliques nos botões/logo */
+}
 /* SETA DE VOLTAR (canto esquerdo) */
 .botaoVoltar {
-  pointer-events: auto;
   background: none;
   border: none;
   padding: 8px;
@@ -48,65 +54,56 @@
 }
 
 .iconeVoltar {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
   display: block;
 }
 
 /* LOGO (canto direito) */
 .logoContainer {
-  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .logo {
-  width: 120px;
-  height: 90px;
+  width: 110px;
+  height: 80px;
   object-fit: contain;
   display: block;
 }
 
-/* ÁREA DO CARROSSEL */
+/* ÁREA DO FORMULÁRIO CENTRALIZADA */
 .carrosselContainer {
   width: 100%;
-  max-width: 600px;
-  overflow: hidden;
-  padding: 0 0 12px;
-  box-sizing: border-box;
-}
-
-.trilhoFormularios {
+  max-width: 480px;
   display: flex;
-  width: 200%;
-  align-items: flex-start;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mostrarEtapa2 {
-  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+  padding: 10px 0;
+  box-sizing: border-box;
 }
 
 .cardEtapa {
-  width: 50%;
-  min-width: 0;
-  padding: 0 15px;
-  box-sizing: border-box;
+  width: 100%;
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
 
 /* TÍTULO CENTRALIZADO */
 .titulo {
   color: #fff;
   text-align: center;
-  font-size: clamp(2.2rem, 4vw, 2.8rem);
+  font-size: clamp(2rem, 3.5vw, 2.5rem);
   line-height: 1.15;
   font-weight: 800;
-  margin: 0 0 24px;
+  margin: 0 0 20px;
   text-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+  width: 100%;
 }
 
 /* FORMULÁRIO */
@@ -119,7 +116,7 @@
 
 .campo {
   width: 100%;
-  min-height: 58px;
+  min-height: 56px;
   box-sizing: border-box;
   background: #fff;
   border: 2px solid transparent;
@@ -180,7 +177,7 @@
 .botaoContinuar {
   margin-top: 6px;
   width: 100%;
-  min-height: 56px;
+  min-height: 54px;
   box-sizing: border-box;
   background: #ffb703;
   color: #171717;
@@ -193,6 +190,9 @@
   cursor: pointer;
   box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
   transition: background 0.2s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .botaoContinuar:hover {
@@ -200,75 +200,10 @@
   transform: translateY(-2px);
 }
 
-/* PROGRESSO */
-.rodapeProgresso {
-  width: 100%;
-  max-width: 600px;
-  margin-top: auto;
-  padding-top: 16px;
-  box-sizing: border-box;
-}
-
-.barrasContainer {
-  display: flex;
-  width: 100%;
-  gap: 10px;
-}
-
-.barra {
-  flex: 1;
-  height: 8px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.4);
-  transition: background 0.3s;
-}
-
-.barraAtiva {
-  background: #ffb703;
-}
-
-.passosLegenda {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.passo {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #c3d7f5;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.passoAtual {
-  color: #fff;
-}
-
-.iconeCheck {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #38a169;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* TELAS PEQUENAS: o cabeçalho volta ao fluxo para não cobrir o título */
+/* TELAS PEQUENAS */
 @media (max-width: 700px) {
   .pagina {
-    padding-top: 16px;
-  }
-
-  .cabecalhoTopo {
-    position: relative;
-    width: 100%;
-    padding: 0 0 10px;
+    padding: 16px;
   }
 
   .logo {
