@@ -1,41 +1,328 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import styles from "./Detalhes.module.css";
+import { useRouter } from "next/router";
+import api from "../../../services/api";
 
 export default function Detalhes() {
+  const router = useRouter();
+  const { id } = router.query;
+  const idAtualRef = useRef(id);
+  idAtualRef.current = id;
+  const versaoSelecaoRef = useRef(0);
+  const [tokenResponsavel, setTokenResponsavel] = useState("");
   const [modal, setModal] = useState("");
   const [limite, setLimite] = useState(150);
   const [ativa, setAtiva] = useState(true);
+  const [crianca, setCrianca] = useState(null);
+  const [carregando, setCarregando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  useEffect(() => {
+    versaoSelecaoRef.current += 1;
+  if (!router.isReady || !id) return;
+  let consultaAtiva = true;
+  async function buscarCrianca() {
+    const token = window.prompt("Informe o JWT do responsável para teste:");
 
-  // Dados fictícios para montar a tela.
-  // Depois podemos conectar com o backend.
-  const crianca = {
-    nome: "LORENZO",
-    email: "LORENZODAVID@EMAIL.COM",
-    avatar: "/images/perfil.png",
-  };
-
-  function confirmarExclusao() {
+    if (!token?.trim()) {
+      setTokenResponsavel("");
+      setCrianca(null);
+      setModal("");
+      setSalvando(false);
+      setCarregando(false);
+      setErro("É necessário informar o JWT para consultar a criança.");
+      return;
+    }
+    setTokenResponsavel(token.trim());
+    setCrianca(null);
     setModal("");
-    alert("A exclusão será conectada à API posteriormente.");
+    setSalvando(false);
+    setCarregando(true);
+    setErro(null);
+
+    try {
+      const resposta = await api.get(
+        "/responsaveis/minhas-criancas",
+        {
+          headers: {
+            Authorization: `Bearer ${token.trim()}`,
+          },
+        }
+      );
+        if (!consultaAtiva) return;
+
+      const encontrada = resposta.data.find(
+        (item) => String(item.usuarioId) === String(id)
+      );
+
+      if (!encontrada) {
+        setErro("Criança não encontrada entre as contas vinculadas.");
+        return;
+      }
+
+      setCrianca(encontrada);
+      setAtiva(encontrada.permissaoAtiva);
+      setLimite(encontrada.limiteTempoDiario ?? "");
+    } catch (erro) {
+      if (!consultaAtiva) return;
+      console.error("Erro ao consultar criança:", erro);
+      setErro("Não foi possível carregar os dados da criança.");
+    } finally {
+      if (consultaAtiva) {
+        setCarregando(false);
+      }
+    }
   }
 
-  function salvarLimite() {
-    if (!limite || Number(limite) < 1) {
-      alert("Informe um limite válido.");
+  buscarCrianca();
+  return () => {
+    consultaAtiva = false;
+    versaoSelecaoRef.current += 1;
+  };
+}, [router.isReady, id]);
+
+  async function confirmarExclusao() {
+    if (salvando) return;
+
+    if (!crianca?._id || !tokenResponsavel) {
+      alert("Não foi possível identificar a criança ou a autenticação.");
       return;
     }
 
-    setLimite(Number(limite));
-    setModal("");
-    alert("Limite atualizado nesta demonstração.");
+    const idDaOperacao = String(id);
+    const versaoDaOperacao = versaoSelecaoRef.current;
+
+    setSalvando(true);
+
+    try {
+      await api.delete(
+        `/responsaveis/minhas-criancas/${crianca._id}/vinculo`,
+        {
+          headers: {
+            Authorization: `Bearer ${tokenResponsavel}`,
+          },
+        }
+      );
+
+      if (
+        String(idAtualRef.current) !== idDaOperacao ||
+        versaoSelecaoRef.current !== versaoDaOperacao
+      ) {
+        return;
+      }
+
+      setModal("");
+      alert("Criança desvinculada com sucesso.");
+      router.push("/responsavel/contas");
+    } catch (erro) {
+      if (
+        String(idAtualRef.current) !== idDaOperacao ||
+        versaoSelecaoRef.current !== versaoDaOperacao
+      ) {
+        return;
+      }
+
+      console.error("Erro ao desvincular criança:", erro.response?.status);
+
+      alert(
+        erro.response?.data?.mensagem ||
+          "Não foi possível desvincular a criança."
+      );
+    } finally {
+      if (
+        String(idAtualRef.current) === idDaOperacao &&
+        versaoSelecaoRef.current === versaoDaOperacao
+      ) {
+        setSalvando(false);
+      }
+    }
   }
 
-  function alternarConta() {
-    setAtiva(!ativa);
-    setModal("");
+  async function salvarLimite() {
+    if (salvando) return;
+
+    if (!crianca?._id || !tokenResponsavel) {
+      alert("Não foi possível identificar a criança ou a autenticação.");
+      return;
+    }
+
+    const limiteNumerico = Number(limite);
+
+    if (!Number.isInteger(limiteNumerico) || limiteNumerico < 1) {
+      alert("Informe um limite válido em minutos.");
+      return;
+    }
+
+    const idDaOperacao = String(id);
+    const versaoDaOperacao = versaoSelecaoRef.current;
+
+    setSalvando(true);
+
+    try {
+      const resposta = await api.patch(
+        `/responsaveis/minhas-criancas/${crianca._id}/limite-tempo`,
+        {
+          limiteTempoDiario: limiteNumerico,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${tokenResponsavel}`,
+          },
+        }
+      );
+
+      if (
+        String(idAtualRef.current) !== idDaOperacao ||
+        versaoSelecaoRef.current !== versaoDaOperacao
+      ) {
+        return;
+      }
+
+      setLimite(resposta.data.limiteTempoDiario);
+
+      setCrianca((anterior) => ({
+        ...anterior,
+        limiteTempoDiario: resposta.data.limiteTempoDiario,
+      }));
+
+      setModal("");
+      alert("Limite diário atualizado com sucesso.");
+    } catch (erro) {
+      if (
+        String(idAtualRef.current) !== idDaOperacao ||
+        versaoSelecaoRef.current !== versaoDaOperacao
+      ) {
+        return;
+      }
+
+      console.error("Erro ao atualizar limite:", erro.response?.status);
+
+      alert(
+        erro.response?.data?.mensagem ||
+          "Não foi possível atualizar o limite diário."
+      );
+    } finally {
+      if (
+        String(idAtualRef.current) === idDaOperacao &&
+        versaoSelecaoRef.current === versaoDaOperacao
+      ) {
+        setSalvando(false);
+      }
+    }
+  }
+  async function removerLimite() {
+    if (salvando) return;
+
+    if (!crianca?._id || !tokenResponsavel) {
+      alert("Não foi possível identificar a criança ou a autenticação.");
+      return;
+    }
+
+    const idDaOperacao = String(id);
+    const versaoDaOperacao = versaoSelecaoRef.current;
+
+    setSalvando(true);
+
+    try {
+      const resposta = await api.patch(
+        `/responsaveis/minhas-criancas/${crianca._id}/limite-tempo`,
+        { limiteTempoDiario: null },
+        {
+          headers: {
+            Authorization: `Bearer ${tokenResponsavel}`,
+          },
+        }
+      );
+
+      if (
+        String(idAtualRef.current) !== idDaOperacao ||
+        versaoSelecaoRef.current !== versaoDaOperacao
+      ) {
+        return;
+      }
+
+      setLimite("");
+
+      setCrianca((anterior) => ({
+        ...anterior,
+        limiteTempoDiario: resposta.data.limiteTempoDiario,
+      }));
+
+      setModal("");
+      alert("Limite diário removido com sucesso.");
+    } catch (erro) {
+      if (
+        String(idAtualRef.current) !== idDaOperacao ||
+        versaoSelecaoRef.current !== versaoDaOperacao
+      ) {
+        return;
+      }
+
+      console.error("Erro ao remover limite:", erro.response?.status);
+
+      alert(
+        erro.response?.data?.mensagem ||
+          "Não foi possível remover o limite diário."
+      );
+    } finally {
+      if (
+        String(idAtualRef.current) === idDaOperacao &&
+        versaoSelecaoRef.current === versaoDaOperacao
+      ) {
+        setSalvando(false);
+      }
+    }
+  }
+  async function alternarConta() {
+    if (salvando) return;
+
+    if (!crianca?._id || !tokenResponsavel) {
+      alert("Não foi possível identificar a criança ou a autenticação.");
+      return;
+    }
+    const idDaOperacao = String(id);
+    const versaoDaOperacao = versaoSelecaoRef.current;
+    const novaPermissao = !ativa;
+    setSalvando(true);
+    try {
+      await api.patch(
+        `/responsaveis/minhas-criancas/${crianca._id}/permissao`,
+        { permissaoAtiva: novaPermissao },
+        {
+          headers: {
+            Authorization: `Bearer ${tokenResponsavel}`,
+          },
+        }
+      );
+      if (String(idAtualRef.current) !== idDaOperacao || versaoSelecaoRef.current !== versaoDaOperacao) return;
+      setAtiva(novaPermissao);
+      setCrianca((anterior) => ({
+        ...anterior,
+        permissaoAtiva: novaPermissao,
+      }));
+      setModal("");
+    } catch (erro) {
+      if (
+        String(idAtualRef.current) !== idDaOperacao ||
+        versaoSelecaoRef.current !== versaoDaOperacao
+      ) return;
+      console.error("Erro ao alterar permissão:", erro.response?.status);
+
+      alert(
+        erro.response?.data?.mensagem ||
+        "Não foi possível alterar a permissão da criança."
+      );
+    } finally {
+      if (
+        String(idAtualRef.current) === idDaOperacao &&
+        versaoSelecaoRef.current === versaoDaOperacao
+      ) {
+        setSalvando(false);
+      }
+    }
   }
 
   return (
@@ -68,52 +355,68 @@ export default function Detalhes() {
         />
 
         <section className={styles.painel}>
-          <div className={styles.perfil}>
-            <img
-              src={crianca.avatar}
-              alt={`Avatar de ${crianca.nome}`}
-              className={styles.avatar}
-            />
+          {carregando && <p>Carregando dados da criança...</p>}
+          {erro && <p role="alert">{erro}</p>}
+          {crianca && (
+            <div className={styles.perfil}>
+              <img
+                src="/images/Perfil.png"
+                alt={`Avatar de ${crianca.nome}`}
+                className={styles.avatar}
+              />
 
-            <h1>{crianca.nome}</h1>
-            <p>{crianca.email}</p>
+              <h1>{crianca.nome}</h1>
+              <p>{crianca.email}</p>
 
-            <p className={styles.status}>
-              Status: {ativa ? "Ativa" : "Desativada"}
-            </p>
-          </div>
+              <p className={styles.status}>
+                Permissão para jogar: {ativa ? "Ativa" : "Desativada"}
+              </p>
+            </div>
+          )}
+          {crianca && (
+            <div className={styles.acoes}>
+              <button
+                type="button"
+                className={styles.botao}
+                onClick={() => {
+                  if (!salvando) setModal("limite");
+                }}
+                disabled={salvando}
+              >
+                Limite de tempo por dia
+              </button>
 
-          <div className={styles.acoes}>
             <button
               type="button"
               className={styles.botao}
-              onClick={() => setModal("limite")}
+              onClick={() => {
+                if (!salvando) setModal("desativar");
+              }}
+              disabled={salvando}
             >
-              Limite de tempo por dia
-            </button>
-
-            <button
-              type="button"
-              className={styles.botao}
-              onClick={() => setModal("desativar")}
-            >
-              {ativa ? "Desativar Conta" : "Ativar Conta"}
+              {ativa ? "Bloquear jogo" : "Liberar jogo"}
             </button>
 
             <button
               type="button"
               className={`${styles.botao} ${styles.excluir}`}
-              onClick={() => setModal("excluir")}
+              onClick={() => {
+                if (!salvando) setModal("excluir");
+              }}
+              disabled={salvando}
             >
-              Excluir Conta
+              Desvincular Criança
             </button>
-          </div>
+            </div>
+          )}
         </section>
 
         {modal && (
           <div
             className={styles.fundoModal}
-            onClick={() => setModal("")}
+            onClick={() => {
+              if (!salvando) setModal("");
+            }}
           >
             <section
               className={styles.modal}
@@ -126,6 +429,7 @@ export default function Detalhes() {
                 className={styles.fechar}
                 onClick={() => setModal("")}
                 aria-label="Fechar modal"
+                disabled={salvando}
               >
                 ×
               </button>
@@ -154,26 +458,38 @@ export default function Detalhes() {
                     <span>minutos</span>
                   </div>
 
-                  <button
-                    type="button"
-                    className={styles.confirmar}
-                    onClick={salvarLimite}
-                  >
-                    Salvar
-                  </button>
+                  <div className={styles.botoesModal}>
+                    <button
+                      type="button"
+                      className={styles.cancelar}
+                      onClick={removerLimite}
+                      disabled={salvando}
+                    >
+                      {salvando ? "Processando..." : "Remover limite"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.confirmar}
+                      onClick={salvarLimite}
+                      disabled={salvando}
+                    >
+                      {salvando ? "Salvando..." : "Salvar"}
+                    </button>
+                  </div>
                 </>
               )}
 
               {modal === "desativar" && (
                 <>
                   <h2>
-                    {ativa ? "Desativar conta?" : "Ativar conta?"}
+                    {ativa ? "Bloquear acesso ao jogo?" : "Liberar acesso ao jogo?"}
                   </h2>
 
                   <p>
                     {ativa
-                      ? "Deseja desativar esta conta?"
-                      : "Deseja ativar esta conta novamente?"}
+                      ? "A criança ficará impedida de jogar até que o acesso seja liberado novamente."
+                      : "A criança poderá voltar a jogar, respeitando o limite diário de tempo configurado."}
                   </p>
 
                   <div className={styles.botoesModal}>
@@ -181,28 +497,30 @@ export default function Detalhes() {
                       type="button"
                       className={styles.cancelar}
                       onClick={() => setModal("")}
+                      disabled={salvando}
                     >
                       Cancelar
                     </button>
 
                     <button
-                      type="button"
-                      className={styles.confirmar}
-                      onClick={alternarConta}
-                    >
-                      Confirmar
-                    </button>
+                    type="button"
+                    className={styles.confirmar}
+                    onClick={alternarConta}
+                    disabled={salvando}
+                  >
+                    {salvando ? "Salvando..." : "Confirmar"}
+                  </button>
                   </div>
                 </>
               )}
 
               {modal === "excluir" && (
                 <>
-                  <h2>Excluir conta?</h2>
+                  <h2>Desvincular criança?</h2>
 
                   <p>
-                    Tem certeza de que deseja excluir esta conta?
-                    Essa ação não poderá ser desfeita.
+                    Deseja remover esta criança das suas contas vinculadas?
+                    A conta e o histórico da criança serão preservados.
                   </p>
 
                   <div className={styles.botoesModal}>
@@ -210,6 +528,7 @@ export default function Detalhes() {
                       type="button"
                       className={styles.cancelar}
                       onClick={() => setModal("")}
+                      disabled={salvando}
                     >
                       Cancelar
                     </button>
@@ -218,8 +537,9 @@ export default function Detalhes() {
                       type="button"
                       className={styles.excluir}
                       onClick={confirmarExclusao}
+                      disabled={salvando}
                     >
-                      Excluir
+                      {salvando ? "Desvinculando..." : "Desvincular"}
                     </button>
                   </div>
                 </>

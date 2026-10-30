@@ -12,12 +12,22 @@ const commonjs = require("next/dist/compiled/babel/plugin-transform-modules-comm
 // Compila o componente real em memória, sem copiar sua lógica nem editar produção.
 function compilarPagina(pagina) {
   assert.ok(
-    ["relatorio", "percentual", "evolucao", "resumo"].includes(pagina),
+    [
+      "relatorio",
+      "percentual",
+      "evolucao",
+      "resumo",
+      "contas",
+      "adicionar-conta",
+      "detalhes",
+    ].includes(pagina),
     "Página não autorizada no helper",
   );
   const arquivo = path.resolve(
     __dirname,
-    "../../src/pages/responsavel/rendimento",
+    ["contas", "adicionar-conta", "detalhes"].includes(pagina)
+      ? "../../src/pages/responsavel"
+      : "../../src/pages/responsavel/rendimento",
     pagina,
     "index.js",
   );
@@ -53,15 +63,30 @@ function montarRelatorio({
 }) {
   // Parâmetro opcional mantém compatibilidade com os testes do relatório.
   const { arquivo, code } = compilarPagina(pagina);
-  const router = { isReady, query: { id } };
+  const navegacoes = [];
+  const router = {
+    isReady,
+    query: { id },
+    push(destino) {
+      navegacoes.push(destino);
+      return Promise.resolve(true);
+    },
+  };
   const chamadas = [];
   const prompts = [];
   const errosConsole = [];
+  const logsConsole = [];
+  const alertas = [];
+  const atualizacoesEstado = [];
   const estados = [];
+  const referencias = [];
   const dependencias = [];
   const limpezas = [];
   const efeitos = [];
+  const callbacksEfeitos = [];
+  let arvore;
   let indiceEstado = 0;
+  let indiceReferencia = 0;
   let indiceEfeito = 0;
   let tokenAtual = token;
   const api = {
@@ -69,14 +94,32 @@ function montarRelatorio({
       chamadas.push({ url, config });
       return Promise.resolve().then(() => responder(url, config));
     },
+    post(url, body, config) {
+      chamadas.push({ metodo: "POST", url, body, config });
+      return Promise.resolve().then(() => responder(url, config, body));
+    },
+    patch(url, body, config) {
+      chamadas.push({ metodo: "PATCH", url, body, config });
+      return Promise.resolve().then(() => responder(url, config, body));
+    },
+    delete(url, config) {
+      chamadas.push({ metodo: "DELETE", url, config });
+      return Promise.resolve().then(() => responder(url, config));
+    },
   };
   const hooks = {
+    useRef(inicial) {
+      const indice = indiceReferencia++;
+      if (!(indice in referencias)) referencias[indice] = { current: inicial };
+      return referencias[indice];
+    },
     useState(inicial) {
       const indice = indiceEstado++;
       if (!(indice in estados)) estados[indice] = inicial;
       return [
         estados[indice],
         (valor) => {
+          atualizacoesEstado.push({ indice, valor });
           estados[indice] =
             typeof valor === "function" ? valor(estados[indice]) : valor;
         },
@@ -104,12 +147,16 @@ function montarRelatorio({
     },
     "next/router": { useRouter: () => router },
     "../../../../services/api": { __esModule: true, default: api },
+    "../../../services/api": { __esModule: true, default: api },
     ["./" +
     {
       relatorio: "Relatorio",
       percentual: "Percentual",
       evolucao: "Evolucao",
       resumo: "Resumo",
+      contas: "Contas",
+      "adicionar-conta": "AdcionarConta",
+      detalhes: "Detalhes",
     }[pagina] +
     ".module.css"]: {
       __esModule: true,
@@ -118,6 +165,9 @@ function montarRelatorio({
   };
   const contexto = {
     exports: {},
+    alert(mensagem) {
+      alertas.push(mensagem);
+    },
     require(nome) {
       assert.ok(Object.hasOwn(modules, nome), "Import não simulado: " + nome);
       return modules[nome];
@@ -129,6 +179,9 @@ function montarRelatorio({
       },
     },
     console: {
+      log(...args) {
+        logsConsole.push(args);
+      },
       error(...args) {
         errosConsole.push(args);
       },
@@ -140,16 +193,40 @@ function montarRelatorio({
     chamadas,
     prompts,
     errosConsole,
+    logsConsole,
+    alertas,
+    navegacoes,
+    atualizacoesEstado,
+    get arvore() {
+      return arvore;
+    },
     renderizar() {
       indiceEstado = 0;
+      indiceReferencia = 0;
       indiceEfeito = 0;
-      return renderToStaticMarkup(Componente());
+      arvore = Componente();
+      return renderToStaticMarkup(arvore);
     },
     executarEfeitos() {
       for (const { indice, callback } of efeitos.splice(0)) {
         if (typeof limpezas[indice] === "function") limpezas[indice]();
+        callbacksEfeitos[indice] = callback;
         limpezas[indice] = callback();
       }
+    },
+    limparEfeitos() {
+      for (let indice = 0; indice < limpezas.length; indice++) {
+        if (typeof limpezas[indice] === "function") limpezas[indice]();
+        limpezas[indice] = undefined;
+      }
+    },
+    // Reproduz SOMENTE setup → cleanup → setup com estado preservado.
+    // Não monta um reconciliador React nem habilita StrictMode real.
+    repetirEfeitos() {
+      callbacksEfeitos.forEach((callback, indice) =>
+        efeitos.push({ indice, callback }),
+      );
+      this.executarEfeitos();
     },
     async resolverConsulta() {
       await nextTurn();
