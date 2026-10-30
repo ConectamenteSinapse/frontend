@@ -2,21 +2,58 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";
+import api from "../../../services/api";
 import styles from "./AdcionarConta.module.css";
+import { useRouter } from "next/router";
 
 export default function AdicionarConta() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-
-  function continuar(event) {
+  const [carregando, setCarregando] = useState(false);
+  async function continuar(event) {
     event.preventDefault();
+    if (carregando) return;
 
     if (!email.trim() || !senha.trim()) {
       alert("Preencha o e-mail e a senha.");
       return;
     }
+    const token = window.prompt("Informe o JWT do responsável para teste:");
+    if (!token?.trim()) {
+      alert("É necessário informar o token para realizar o teste.");
+      return;
+    }
+    setCarregando(true);
+    try {
+      const resposta = await api.post(
+        "/responsaveis/vincular-crianca",
+        { email, senha },
+        {
+          headers: {
+            Authorization: `Bearer ${token.trim()}`,
+          },
+        }
+      );
+      console.log("Resposta da API:", resposta.data);
+      alert("Criança vinculada com sucesso!");
+      router.push("/responsavel/contas");
+    } catch (erro) {
 
-    alert("Formulário preenchido! A integração com a API será feita depois.");
+      const status = erro.response?.status;
+     const mensagem =
+        erro.response?.data?.mensagem ||
+        "Não foi possível vincular a criança.";
+        console.error("Erro na vinculação:", {
+          status,
+          mensagem,
+        });
+
+      alert(mensagem);
+    }
+    finally {
+      setCarregando(false);
+    }
   }
 
   return (
@@ -26,7 +63,7 @@ export default function AdicionarConta() {
       </Head>
 
       <main className={styles.pagina}>
-        
+
       <Link
         href="/responsavel/contas"
         className={styles.voltar}
@@ -74,8 +111,12 @@ export default function AdicionarConta() {
               required
             />
 
-            <button type="submit" className={styles.continuar}>
-              Continuar
+            <button
+              type="submit"
+              className={styles.continuar}
+              disabled={carregando}
+            >
+              {carregando ? "Vinculando..." : "Continuar"}
             </button>
           </form>
         </section>
