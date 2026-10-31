@@ -18,15 +18,14 @@ export default function Evolucao() {
     let consultaAtiva = true;
     async function buscarEvolucao() {
       setConsultaConcluida(false);
-      setCarregando(false);
+      setCarregando(true);
       setErro(null);
       setEvolucao([]);
-      const token = window.prompt(
-        "Informe o JWT do responsável para teste:"
-      );
+      const token = localStorage.getItem("token");
 
       if (!token?.trim()) {
-        setErro("É necessário informar o JWT.");
+        setCarregando(false);
+        router.replace("/");
         return;
       }
 
@@ -34,22 +33,23 @@ export default function Evolucao() {
       
       try {
         const resposta = await api.get(
-          `/criancas/${id}/evolucao-diaria`,
-          {
-            headers: {
-              Authorization: `Bearer ${token.trim()}`,
-            },
-          }
+          `/criancas/${id}/evolucao-diaria`
         );
         if (!consultaAtiva) return;
         setEvolucao(resposta.data.evolucao);
         setConsultaConcluida(true);
       } catch (error) {
         if (!consultaAtiva) return;
-        console.error(
-          "Erro ao consultar evolução diária:",
-          error.response?.status
-        );
+
+        if (error.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          setEvolucao([]);
+          router.replace("/");
+          return;
+        }
+
+        setEvolucao([]);
 
         setErro(
           error.response?.data?.mensagem ||

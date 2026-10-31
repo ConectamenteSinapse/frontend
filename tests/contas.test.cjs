@@ -62,15 +62,16 @@ function semContas(html) {
   );
 }
 
-test("consulta somente GET /responsaveis/minhas-criancas com JWT Bearer sem espaços", async () => {
+test("token presente no localStorage permite GET sem prompt ou Authorization manual", async () => {
   const tela = pagina({ token: "  jwt-responsavel-ficticio  " });
   await consultar(tela);
   assert.equal(tela.chamadas.length, 1);
   assert.equal(tela.chamadas[0].url, "/responsaveis/minhas-criancas");
-  assert.equal(
-    tela.chamadas[0].config.headers.Authorization,
-    "Bearer jwt-responsavel-ficticio",
-  );
+  assert.equal(tela.chamadas[0].config, undefined);
+  assert.equal(tela.prompts.length, 0);
+  assert.ok(tela.operacoesStorage.some((op) => op.metodo === "getItem" && op.chave === "token"));
+  assert.equal(tela.armazenamento.get("token"), "  jwt-responsavel-ficticio  ");
+  assert.deepEqual(tela.substituicoes, []);
 });
 
 test("mostra nome, e-mail e avatar de cada criança vinculada", async () => {
@@ -153,16 +154,14 @@ for (const token of [null, "", "   "]) {
   test(
     "JWT não informado (" +
       JSON.stringify(token) +
-      ") informa erro e não chama API",
+      ") redireciona ao login sem prompt nem chamada API",
     async () => {
       const tela = pagina({ token });
       const html = await consultar(tela);
-      assert.match(html, /É necessário informar o JWT do responsável\./);
       assert.equal(tela.chamadas.length, 0);
-      assert.doesNotMatch(
-        html,
-        /Carregando contas|Você não possui contas para monitorar/,
-      );
+      assert.deepEqual(tela.substituicoes, ["/"]);
+      assert.equal(tela.prompts.length, 0);
+      assert.doesNotMatch(html, /Carregando contas|É necessário informar o JWT/);
       semContas(html);
     },
   );
@@ -172,7 +171,7 @@ for (const status of [401, 403]) {
   test(
     "HTTP " +
       status +
-      " usa a mensagem genérica atual e não mostra lista vazia como sucesso",
+      (status === 401 ? " limpa sessão e substitui navegação pelo login" : " mostra acesso negado e preserva sessão"),
     async () => {
       const tela = pagina({
         responder: () =>
@@ -181,12 +180,21 @@ for (const status of [401, 403]) {
           }),
       });
       const html = await consultar(tela);
-      assert.match(html, /Não foi possível carregar as contas\./);
-      assert.doesNotMatch(
-        html,
-        /Mensagem da API|Carregando contas|Você não possui contas para monitorar/,
-      );
-      assert.equal(tela.errosConsole.length, 1);
+      if (status === 401) {
+        assert.equal(tela.armazenamento.has("token"), false);
+        assert.equal(tela.armazenamento.has("usuario"), false);
+        assert.deepEqual(tela.operacoesStorage.filter((op) => op.metodo === "removeItem").map((op) => op.chave), ["token", "usuario"]);
+        assert.deepEqual(tela.substituicoes, ["/"]);
+      } else {
+        assert.match(html, /Você não tem permissão para acessar estas contas\./);
+        assert.doesNotMatch(html, /Você não possui contas para monitorar/);
+        assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+        assert.ok(tela.armazenamento.has("usuario"));
+        assert.deepEqual(tela.substituicoes, []);
+      }
+      assert.doesNotMatch(html, /Mensagem da API|Carregando contas/);
+      assert.equal(tela.errosConsole.length, 0);
+      assert.equal(tela.prompts.length, 0);
       semContas(html);
     },
   );
@@ -203,6 +211,43 @@ test("falha de comunicação usa mensagem de erro e encerra carregamento", async
     /Carregando contas|Você não possui contas para monitorar/,
   );
   semContas(html);
+  assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+  assert.ok(tela.armazenamento.has("usuario"));
+  assert.deepEqual(tela.substituicoes, []);
+  assert.equal(tela.errosConsole.length, 1);
+});
+
+for (const status of [500, 503]) {
+  test(`erro HTTP ${status} mostra falha genérica e preserva sessão`, async () => {
+    const tela = pagina({ responder: () => Promise.reject({ response: { status, data: { mensagem: "Detalhe interno fictício" } } }) });
+    const html = await consultar(tela);
+    assert.match(html, /Não foi possível carregar as contas\./);
+    assert.doesNotMatch(html, /Detalhe interno|Carregando contas|Você não possui contas/);
+    semContas(html);
+    assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+    assert.ok(tela.armazenamento.has("usuario"));
+    assert.deepEqual(tela.substituicoes, []);
+    assert.equal(tela.errosConsole.length, 1);
+    assert.equal(tela.prompts.length, 0);
+  });
+}
+
+test("token permite consulta mesmo sem usuario no storage; página não exige metadados locais", async () => {
+  const tela = pagina({ usuario: null });
+  assert.match(await consultar(tela), /Caio da fixture/);
+  assert.equal(tela.chamadas.length, 1);
+  assert.equal(tela.prompts.length, 0);
+  assert.deepEqual(tela.substituicoes, []);
+});
+
+test("401 remove apenas token e usuario, preservando outras chaves do storage", async () => {
+  const tela = pagina({ responder: () => Promise.reject({ response: { status: 401 } }) });
+  tela.localStorage.setItem("preferencia-ficticia", "preservar");
+  await consultar(tela);
+  assert.equal(tela.armazenamento.get("preferencia-ficticia"), "preservar");
+  assert.equal(tela.armazenamento.has("token"), false);
+  assert.equal(tela.armazenamento.has("usuario"), false);
+  assert.deepEqual(tela.substituicoes, ["/"]);
 });
 
 test("mostra carregamento enquanto aguarda resposta e depois apresenta as contas", async () => {
@@ -219,15 +264,15 @@ test("mostra carregamento enquanto aguarda resposta e depois apresenta as contas
   assert.match(tela.renderizar(), /Caio da fixture/);
 });
 
-test("nova renderização sem remontagem não repete prompt ou consulta do efeito vazio", async () => {
+test("nova renderização com mesmo router não repete consulta e nunca solicita prompt", async () => {
   const tela = pagina();
   await consultar(tela);
   await consultar(tela);
-  assert.equal(tela.prompts.length, 1);
+  assert.equal(tela.prompts.length, 0);
   assert.equal(tela.chamadas.length, 1);
 });
 
-for (const resultado of ["sucesso", "erro", "vazio"]) {
+for (const resultado of ["sucesso", "erro", "vazio", 401, 403, 500]) {
   test(
     "cleanup impede setState após resposta atrasada: " + resultado,
     async () => {
@@ -238,18 +283,22 @@ for (const resultado of ["sucesso", "erro", "vazio"]) {
       await tela.resolverConsulta();
       tela.limparEfeitos();
       const atualizacoesAntes = tela.atualizacoesEstado.length;
-      if (resultado === "erro")
+      if (typeof resultado === "number") pendente.reject({ response: { status: resultado } });
+      else if (resultado === "erro")
         pendente.reject(new Error("Erro depois do cleanup"));
       else pendente.resolve({ data: resultado === "vazio" ? [] : contas() });
       await tela.resolverConsulta();
       // Não renderiza o componente desmontado: observa tentativas de atualização.
       assert.equal(tela.atualizacoesEstado.length, atualizacoesAntes);
       assert.equal(tela.errosConsole.length, 0);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
     },
   );
 }
 
-test("sequência simulada de Strict Mode repete o prompt e ignora a primeira resposta", async () => {
+test("sequência simulada setup-cleanup-setup ignora a primeira resposta sem solicitar prompt", async () => {
   const primeira = promessaControlada();
   const segunda = promessaControlada();
   let chamadas = 0;
@@ -261,7 +310,7 @@ test("sequência simulada de Strict Mode repete o prompt e ignora a primeira res
   await tela.resolverConsulta();
   tela.repetirEfeitos();
   await tela.resolverConsulta();
-  assert.equal(tela.prompts.length, 2);
+  assert.equal(tela.prompts.length, 0);
   assert.equal(tela.chamadas.length, 2);
   segunda.resolve({ data: [contas()[1]] });
   await tela.resolverConsulta();
@@ -271,6 +320,71 @@ test("sequência simulada de Strict Mode repete o prompt e ignora a primeira res
   const html = tela.renderizar();
   assert.match(html, /Lia da fixture/);
   assert.doesNotMatch(html, /Caio da fixture|Não foi possível carregar/);
+});
+
+test("401 antigo não apaga nova sessão nem redireciona depois de outro setup concluído", async () => {
+  const primeira = promessaControlada();
+  let numero = 0;
+  const tela = pagina({ responder: () => ++numero === 1 ? primeira.promise : { data: [contas()[1]] } });
+  tela.renderizar(); tela.executarEfeitos(); await tela.resolverConsulta();
+  tela.definirToken("jwt-nova-sessao-ficticio");
+  tela.localStorage.setItem("usuario", JSON.stringify({ id: "novo-responsavel-ficticio" }));
+  tela.repetirEfeitos(); await tela.resolverConsulta();
+  const atualizacoesAntes = tela.atualizacoesEstado.length;
+  primeira.reject({ response: { status: 401 } }); await tela.resolverConsulta();
+  const html = tela.renderizar();
+  assert.match(html, /Lia da fixture/); assert.doesNotMatch(html, /Caio da fixture/);
+  assert.equal(tela.atualizacoesEstado.length, atualizacoesAntes);
+  assert.equal(tela.armazenamento.get("token"), "jwt-nova-sessao-ficticio");
+  assert.equal(JSON.parse(tela.armazenamento.get("usuario")).id, "novo-responsavel-ficticio");
+  assert.deepEqual(tela.substituicoes, []);
+});
+
+test("401 do setup atual retira contas carregadas anteriormente e encerra loading", async () => {
+  let numero = 0;
+  const tela = pagina({ responder: () => ++numero === 1 ? { data: contas() } : Promise.reject({ response: { status: 401 } }) });
+  assert.match(await consultar(tela), /Caio da fixture/);
+  tela.repetirEfeitos(); await tela.resolverConsulta();
+  const html = tela.renderizar();
+  semContas(html); assert.doesNotMatch(html, /Carregando contas/);
+  assert.equal(tela.armazenamento.size, 0);
+  assert.deepEqual(tela.substituicoes, ["/"]);
+});
+
+test("HTTP local: Contas e interceptor Axios reais enviam JWT do storage sem prompt", async (t) => {
+  const { createServer } = require("node:http");
+  const { once } = require("node:events");
+  const { readFileSync } = require("node:fs");
+  const path = require("node:path");
+  const vm = require("node:vm");
+  const babel = require("next/dist/compiled/babel/core");
+  const commonjs = require("next/dist/compiled/babel/plugin-transform-modules-commonjs");
+  const recebidas = [];
+  const servidor = createServer((req, res) => {
+    recebidas.push({ url: req.url, authorization: req.headers.authorization });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(contas()));
+  });
+  servidor.listen(0, "127.0.0.1"); await once(servidor, "listening");
+  t.after(() => new Promise((resolve) => servidor.close(resolve)));
+  let apiReal;
+  const tela = pagina({ token: "jwt-storage-ficticio", responder: (url, config) => apiReal.get(url, config) });
+  const arquivo = path.resolve(__dirname, "../src/services/api.js");
+  const { code } = babel.transformSync(readFileSync(arquivo, "utf8"), { filename: arquivo, babelrc: false, configFile: false, plugins: [commonjs] });
+  const contexto = { exports: {}, require, window: { localStorage: tela.localStorage }, localStorage: tela.localStorage,
+    process: { env: { NEXT_PUBLIC_API_URL: `http://127.0.0.1:${servidor.address().port}` } } };
+  vm.runInNewContext(code, contexto, { filename: arquivo }); apiReal = contexto.exports.default;
+  let terminar;
+  const concluida = new Promise((resolve) => { terminar = resolve; });
+  // Observa conclusão do transporte real sem depender de sleeps ou de um único tick.
+  apiReal.interceptors.response.use((res) => { terminar(); return res; }, (erro) => { terminar(); return Promise.reject(erro); });
+  tela.renderizar(); tela.executarEfeitos();
+  await concluida; await tela.resolverConsulta();
+  assert.match(tela.renderizar(), /Caio da fixture/);
+  assert.deepEqual(recebidas, [{ url: "/responsaveis/minhas-criancas", authorization: "Bearer jwt-storage-ficticio" }]);
+  assert.equal(tela.chamadas[0].config, undefined);
+  assert.equal(tela.prompts.length, 0);
+  assert.deepEqual(tela.substituicoes, []);
 });
 
 test("erro da primeira execução simulada não altera resultado da segunda", async () => {
@@ -314,7 +428,7 @@ test("finally da primeira execução simulada não encerra carregamento da segun
   assert.match(tela.renderizar(), /Você não possui contas para monitorar/);
 });
 
-test("cancelamento inicial seguido de JWT válido na repetição simulada permite consultar", async () => {
+test("sessão ausente seguida de token presente em novo setup permite consultar", async () => {
   const tela = pagina({ token: null });
   await consultar(tela);
   tela.definirToken("jwt-valido-ficticio");
@@ -323,17 +437,19 @@ test("cancelamento inicial seguido de JWT válido na repetição simulada permit
   const html = tela.renderizar();
   assert.match(html, /Caio da fixture/);
   assert.doesNotMatch(html, /É necessário informar|Carregando contas/);
-  assert.equal(tela.prompts.length, 2);
+  assert.equal(tela.prompts.length, 0);
   assert.equal(tela.chamadas.length, 1);
+  assert.deepEqual(tela.substituicoes, ["/"]);
 });
 
-test("cancelar os dois prompts na repetição simulada informa erro sem requisições", async () => {
+test("sessão ausente em dois setups redireciona ao login sem requisições ou prompts", async () => {
   const tela = pagina({ token: null });
   await consultar(tela);
   tela.repetirEfeitos();
   await tela.resolverConsulta();
-  assert.match(tela.renderizar(), /É necessário informar o JWT do responsável/);
-  assert.equal(tela.prompts.length, 2);
+  assert.doesNotMatch(tela.renderizar(), /Carregando contas/);
+  assert.deepEqual(tela.substituicoes, ["/", "/"]);
+  assert.equal(tela.prompts.length, 0);
   assert.equal(tela.chamadas.length, 0);
 });
 
@@ -356,9 +472,10 @@ for (const token of [null, "", "   "]) {
       assert.doesNotMatch(
         html,
         /Carregando contas/,
-        "Cancelamento do segundo prompt mantém spinner indefinidamente",
+        "Sessão ausente no segundo setup não pode manter spinner",
       );
-      assert.match(html, /É necessário informar o JWT do responsável/);
+      assert.deepEqual(tela.substituicoes, ["/"]);
+      assert.equal(tela.prompts.length, 0);
       semContas(html);
     },
   );

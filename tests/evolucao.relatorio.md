@@ -1,118 +1,124 @@
-# Evolução do Progresso — testes automatizados
+﻿# Evolução do Progresso — testes da integração JWT
 
-Validação em **30/10/2026**, Node.js 24.22.1. Componente:
-`src/pages/responsavel/rendimento/evolucao/index.js`.
+Validação em **31/10/2026**, Node.js **24.22.1**.
+Componente: `src/pages/responsavel/rendimento/evolucao/index.js`.
 
-Consultados os três documentos de contexto/arquitetura, o código atual da página,
-seu CSS, package.json e os testes existentes. O código local já utiliza
-evolucao-diaria, consultaConcluida e cleanup com consultaAtiva; os diagnósticos
-históricos de gráfico demonstrativo não descrevem essa implementação atual.
+## Análise e comportamento atual
 
-## Resultados efetivamente executados
+Consultados `CONTEXTO_DESENVOLVIMENTO.md`, `ANALISE_ARQUITETURA_FRONTEND.md`,
+página atual, `src/services/api.js`, CSS e testes/helpers existentes.
+O diagnóstico documental de JWT por prompt é histórico: atualmente a página
+lê localStorage, e api.js acrescenta Authorization pelo interceptor Axios.
 
-| Execução                                    | Aprovados | Reprovados | Ignorados |
-| ------------------------------------------- | --------: | ---------: | --------: |
-| Específicos de Evolução do Progresso        |        35 |          0 |         0 |
-| Percentual de Acertos na regressão conjunta |        30 |          0 |         0 |
-| Relatório Final na regressão conjunta       |        27 |          0 |         0 |
-| Total da execução conjunta após formatação  |        92 |          0 |         0 |
+A página consulta `/criancas/:id/evolucao-diaria`, usando Usuario._id da URL.
+No início da consulta limpa série/erro, redefine consultaConcluida para false
+e ativa carregamento. Sem token redireciona para `/`, sem GET. Em sucesso,
+recebe evolucao e marca consultaConcluida; somente então mostra gráfico ou
+mensagem de ausência de registros. Em 401 remove token/usuario e redireciona;
+outros erros preservam sessão e exibem mensagem backend ou fallback.
+O cleanup invalida respostas antigas por consultaAtiva.
 
-Comandos com exit 0, sem cancelamentos ou TODOs. A primeira execução específica
-teve 35 aprovações; elas foram repetidas na regressão, não somadas novamente.
-As suítes anteriores passaram sem modificar seus cenários ou expectativas.
+## Resultados executados
 
-**Nenhum defeito funcional reproduzido nos cenários executados.** Não houve
-homologação visual nem integração HTTP real nesta rodada.
+| Execução | Aprovados | Reprovados | Ignorados |
+| --- | ---: | ---: | ---: |
+| Evolução isolada | 54 | 0 | 0 |
+| Regressão conjunta: Evolução, Percentual, Resumo, Relatório, Contas, Painel e Detalhes | 328 | 0 | 0 |
+| Autenticação filtrada: login e sessão do responsável | 11 | 0 | 0 |
+| Total sem repetir os 54 específicos incluídos na regressão | **339** | **0** | **0** |
 
-## Cobertura dos cenários solicitados
+Comandos finais retornaram 0, sem cancelamentos ou TODOs.
+Sintaxe e ESLint passaram; teste específico formatado com instalação existente.
+Cadastro e Adicionar Conta foram excluídos dos comandos, não contabilizados
+como aprovações ou skipped. O filtro de autenticação seleciona apenas login
+ou sessão, evitando também testes de cadastro com títulos genéricos.
 
-| Cenário              | Verificação executada                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| Endpoint             | Uma única consulta GET /criancas/:usuarioId/evolucao-diaria                                    |
-| JWT do responsável   | Header Bearer e remoção de espaços do token fictício                                           |
-| Percentuais da API   | Alturas dos pontos para 0%, 50%, 72%, 66,67% e 100%                                            |
-| Datas e ordem        | Rótulos dd/mm, ordem recebida, virada de mês/ano e lacunas sem dias inventados                 |
-| Um dia               | Ponto central x=300 e caminho SVG sem NaN/Infinity                                             |
-| Vários dias          | Posições e caminho que liga os pontos; escala 0/25/50/75/100                                   |
-| Sem histórico        | Mensagem específica somente após sucesso com evolucao vazio, sem gráfico                       |
-| Antes da consulta    | Ausência de mensagem prematura de histórico vazio e de série demonstrativa                     |
-| JWT ausente          | Cancelamento, string vazia e espaços; mensagem e zero chamadas                                 |
-| HTTP 401/403         | Mensagem da API; gráfico e mensagem de histórico vazio ausentes                                |
-| Falha de comunicação | Mensagem padrão e encerramento do carregamento                                                 |
-| Carregamento         | Promessa pendente, sem gráfico ou mensagem de ausência                                         |
-| Troca de criança     | Série anterior oculta após início do novo efeito; novo ID na URL e novos dados                 |
-| Respostas antigas    | Sucesso, erro e resultado vazio antigos não sobrescrevem sucesso atual                         |
-| Erros antigos        | Não geram alerta nem encerram o carregamento atual; sucesso antigo não remove erro novo        |
-| Sem recálculo        | Fixture divergente dos contadores e getters que falham se acertos/erros/tentativas forem lidos |
+A execução inicial teve 27 aprovações e 8 falhas em 35 testes. As falhas eram
+expectativas anteriores: header explícito/JWT manual, alerta em vez de
+redirecionamento e exigência de console.error. Foram atualizadas conforme
+os requisitos, preservando os cenários de cálculo, datas e desenho do SVG.
 
-Também foram testados router não pronto, ID ausente, erro HTTP sem mensagem,
-falhas de nova consulta após resultado anterior, finally antigo durante nova
-consulta, histórico vazio anterior durante carregamento e troca de uma criança
-com atividades para outra sem histórico.
+**Nenhum defeito funcional de Evolução foi reproduzido nos cenários finais.**
 
-## Datas e percentuais: interpretação do contrato
+## Cobertura
 
-O backend é responsável pela ordenação cronológica e pelo cálculo dos percentuais
-diários. A página utiliza diretamente a ordem do array recebido e extrai dd/mm
-das strings de data, sem agrupar ou ordenar novamente. Uma fixture deliberadamente
-fora da ordem cronológica confirma esse comportamento de preservação da sequência;
-ela não homologa uma resposta incorreta do backend.
+- Sem window.prompt() no fluxo de consulta; token do localStorage compartilhado
+  entre componente e interceptor Axios real.
+- Uma única consulta GET ao endpoint de evolução, Bearer automático e ausência
+  de config/header explícito no componente; token atualizado na próxima consulta.
+- Token ausente, vazio ou de espaços: sem API, gráfico ou falso histórico vazio,
+  com redirecionamento ao login; ausência completa de sessão também coberta.
+- 401 com/sem mensagem remove apenas token e usuario, preserva outras chaves,
+  encerra loading e redireciona sem histórico vazio ou gráfico.
+- 403, 404 e 500 preservam sessão e mensagens backend; sem mensagem usam fallback.
+- Falha de rede mantém sessão e exibe fallback, sem redirecionar.
+- Alturas para 0%, 50%, 72%, 66.67% e 100%; ponto único central e caminho SVG
+  ligando vários pontos, escala 0/25/50/75/100 e rótulos dd/mm.
+- Preserva percentualAcertos e ordem recebidos, sem recalcular contadores,
+  reagrupar ou inventar dias sem tentativas; viradas de mês e ano cobertas.
+- Evolução vazia mostra mensagem somente após sucesso confirmado.
+- Router não pronto ou ID ausente não inicia consulta.
+- Usuario._id preservado no GET e link de retorno, inclusive com criancaId
+  diferente na resposta, sem substituir o identificador da URL.
+- Limpeza de série/erro anteriores, carregamento pendente e consultaConcluida
+  verificados pelo comportamento visível, sem depender do índice dos hooks.
+- Sucesso, erro, vazio e 401 antigos não sobrescrevem série atual; 401 antigo
+  não apaga sessão; finally antigo não encerra carregamento atual.
+- Vazio antigo não conclui consulta nova pendente; sucesso/vazio antigo após
+  token ausente não exibe gráfico ou histórico vazio.
+- Cleanup após desmontagem impede setState e redirecionamentos tardios.
+- Estrutura SVG, viewBox, grade, linha, pontos, legenda, classes CSS, imagens,
+  títulos, metadados e navegação preservados.
 
-A representação horizontal atual distribui igualmente os pontos recebidos;
-não insere dias sem tentativas nem representa a duração dos intervalos entre datas.
-Os rótulos usam dd/mm e não exibem o ano. Os percentuais são representados pela
-altura dos pontos, sem rótulo numérico individual de cada percentual.
+## Simulação, interceptor real e HTTP real
 
-Converter percentual em coordenada SVG e posicionar linhas de escala são cálculos
-de apresentação. Não são recálculo de rendimento a partir de acertos e tentativas.
-Foi comprovado que o componente não depende desses contadores para desenhar a série.
+**Suíte Evolução (54 testes):** reutiliza node:test/assert, Babel do Next, VM,
+renderToStaticMarkup e o helper existente, sem modificá-lo. A opção usarApiReal
+executa api.js e seu interceptor Axios reais, com adapter de transporte simulado.
+Hooks, router, storage e CSS Modules são controlados. Um teste usa API totalmente
+simulada para comprovar que o componente não fornece config explícita.
+Não há HTTP real nesta suíte nem validação criptográfica do JWT.
 
-As regras da #107 permanecem intactas: consulta geral da criança por Usuario._id,
-com dados calculados no backend e autorização de responsável vinculada ao JWT.
-A suíte testa o envio do token e tratamento das respostas, não sua validação
-criptográfica ou o vínculo real no backend.
+**Regressão com HTTP local real (2 testes incluídos nos totais):**
 
-## Infraestrutura reutilizada e limitações
+- Contas: componente/interceptor Axios reais e servidor node:http em loopback
+  com resposta fixa; verifica Authorization recebido pelo servidor.
+- Login: formulário/Axios, Express/Router/Controller/Service e bcrypt/JWT reais,
+  com Models simulados; confirma obtenção e reutilização da sessão.
 
-Reutilizados node:test/assert, Babel já incluído no Next, VM isolada e
-renderToStaticMarkup. O helper existente recebeu apenas a página evolucao
-na lista permitida e seu mock de CSS Modules. O default relatorio e as duas
-suítes anteriores foram preservados.
+Os demais cenários usam respostas controladas. Sem MongoDB, API externa ou dados
+reais. Nenhum arquivo do backend foi alterado. HTTP local não equivale a E2E.
 
-São testes unitários do código real com hooks controlados. Requisições, router,
-prompt, CSS Modules e Head/Link são simulados; a instância Axios real não é
-carregada e imports não previstos são rejeitados. As callbacks reais do efeito
-e seu cleanup são executados em ordem controlada, sem sleeps arbitrários.
+A verificação visual cobre HTML/SVG, coordenadas, caminho, atributos e classes;
+não comprova pixels, CSS aplicado, responsividade, DOM, navegação Next real,
+hidratação, batching/StrictMode real ou CORS. Os estados são observados após
+os efeitos, sem certificar ausência de um frame anterior no navegador.
+A distribuição horizontal preservada é uniforme entre pontos recebidos,
+sem representar a duração dos intervalos entre datas. O ano não aparece no eixo.
 
-O HTML/SVG gerado valida estrutura, texto, coordenadas, caminho e atributos
-acessíveis. Não certifica pixels, CSS aplicado, responsividade, navegação real,
-eventos, hidratação, batching/StrictMode, semântica completa do Next Router,
-CORS ou o ciclo de vida real do Next. Não houve teste DOM/ponta a ponta.
-A suíte observa renderizações controladas após os efeitos; não certifica a
-ausência de um frame antigo antes da execução do efeito no navegador.
+## Arquivos alterados nesta tarefa
 
-## Arquivos e comandos
+- `tests/evolucao.test.cjs`: expectativas JWT atualizadas e ampliação para 54 testes.
+- `tests/evolucao.relatorio.md`: análise, resultados, cobertura e limites.
 
-- Criado: tests/evolucao.test.cjs.
-- Criado: tests/evolucao.relatorio.md.
-- Ajustado: tests/helpers/relatorio.cjs para aceitar evolucao e seu CSS.
+Helper, outras suítes e alterações pré-existentes foram preservados.
+Nenhuma alteração de produção, backend, MongoDB ou cadastro. Nenhuma instalação,
+commit, push ou merge.
+
+## Comandos de reprodução
 
 A partir de frontend:
 
 ```powershell
 node --test --test-concurrency=1 --test-reporter=spec tests/evolucao.test.cjs
-node --test --test-concurrency=1 --test-reporter=spec tests/evolucao.test.cjs tests/percentual.test.cjs tests/relatorio.test.cjs
-node node_modules/eslint/bin/eslint.js tests/evolucao.test.cjs tests/helpers/relatorio.cjs
+node --test --test-concurrency=1 --test-reporter=spec tests/evolucao.test.cjs tests/percentual.test.cjs tests/resumo.test.cjs tests/relatorio.test.cjs tests/contas.test.cjs tests/painelResponsavel.test.cjs tests/detalhes.test.cjs
+node --test --test-concurrency=1 --test-reporter=spec --test-name-pattern='^(login|Login:|caracterização: handler de login|perfil de login|integração HTTP real: Login|responsável:)' tests/autenticacao.auditoria.test.cjs
+node node_modules/eslint/bin/eslint.js tests/evolucao.test.cjs
+node --check tests/evolucao.test.cjs
 ```
 
-A partir da raiz do workspace:
+Formatação com instalação existente, a partir da raiz:
 
 ```powershell
-node --check frontend/tests/evolucao.test.cjs
-node --check frontend/tests/helpers/relatorio.cjs
-node backend/node_modules/prettier/bin/prettier.cjs --write frontend/tests/evolucao.test.cjs frontend/tests/helpers/relatorio.cjs
+node backend/node_modules/prettier/bin/prettier.cjs --write frontend/tests/evolucao.test.cjs
 ```
-
-Sintaxe e ESLint aprovados. Foi utilizado apenas o formatador já instalado e
-somente nos arquivos de testes/relatório. Nenhuma alteração em produção,
-backend, banco, dependências ou documentos de contexto; nenhum commit ou push.

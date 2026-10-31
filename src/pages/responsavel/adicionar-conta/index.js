@@ -19,43 +19,30 @@ export default function AdicionarConta() {
       alert("Preencha o e-mail e a senha.");
       return;
     }
-    const token = window.prompt("Informe o JWT do responsável para teste:");
+    const token = localStorage.getItem("token");
+
     if (!token?.trim()) {
-      alert("É necessário informar o token para realizar o teste.");
+      alert("Sua sessão não foi encontrada. Faça login novamente.");
+      router.replace("/");
       return;
     }
     setCarregando(true);
     try {
-      const resposta = await api.post(
-        "/responsaveis/vincular-crianca",
-        { email, senha },
-        {
-          headers: {
-            Authorization: `Bearer ${token.trim()}`,
-          },
-        }
-      );
-      console.log("Resposta da API:", resposta.data);
+      await api.post("/responsaveis/vincular-crianca", {
+        email: email.trim(),
+        senha,
+      });
       alert("Criança vinculada com sucesso!");
       router.push("/responsavel/contas");
     } catch (erro) {
-
-      const status = erro.response?.status;
-     const mensagem =
+      const mensagem =
         erro.response?.data?.mensagem ||
         "Não foi possível vincular a criança.";
-        console.error("Erro na vinculação:", {
-          status,
-          mensagem,
-        });
-
       alert(mensagem);
-    }
-    finally {
+    } finally {
       setCarregando(false);
     }
   }
-
   return (
     <>
       <Head>

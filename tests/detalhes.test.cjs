@@ -1,4 +1,4 @@
-const test = require("node:test");
+﻿const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   montarRelatorio,
@@ -50,6 +50,7 @@ async function consultar(tela) {
   tela.renderizar();
   tela.executarEfeitos();
   await tela.resolverConsulta();
+  assert.equal(tela.prompts.length, 0, "Não deve solicitar JWT por prompt");
   return tela.renderizar();
 }
 
@@ -123,6 +124,12 @@ const OPERACOES = [
   "remover-limite",
   "desvincular",
 ];
+const FALLBACKS = {
+  permissao: "Não foi possível alterar a permissão da criança.",
+  "salvar-limite": "Não foi possível atualizar o limite diário.",
+  "remover-limite": "Não foi possível remover o limite diário.",
+  desvincular: "Não foi possível desvincular a criança.",
+};
 function preparar(tela, operacao) {
   if (operacao === "permissao")
     abrir(
@@ -146,7 +153,7 @@ function acao(tela, operacao) {
   );
 }
 
-test("GET da lista envia Bearer e seleciona criança por usuarioId da URL", async () => {
+test("GET da lista não fornece headers manuais e seleciona por Usuario._id da URL", async () => {
   const filhos = criancas();
   filhos.unshift({
     ...filhos[1],
@@ -156,14 +163,14 @@ test("GET da lista envia Bearer e seleciona criança por usuarioId da URL", asyn
   });
   const tela = await carregar({
     filhos,
-    token: "  jwt-responsavel-ficticio  ",
+    token: "jwt-responsavel-ficticio",
   });
   assert.equal(tela.chamadas.length, 1);
   assert.equal(tela.chamadas[0].url, URL_LISTA);
-  assert.equal(
-    tela.chamadas[0].config.headers.Authorization,
-    "Bearer jwt-responsavel-ficticio",
-  );
+  assert.equal(tela.chamadas[0].config, undefined);
+  assert.deepEqual(tela.operacoesStorage, [
+    { metodo: "getItem", chave: "token" },
+  ]);
   conferirCrianca(tela);
   assert.match(tela.renderizar(), /a@example.invalid/);
   assert.doesNotMatch(tela.renderizar(), /Armadilha de ID/);
@@ -188,10 +195,8 @@ for (const token of [null, "", "   "]) {
       " não consulta nem mostra criança anterior",
     async () => {
       const tela = await carregar({ token });
-      assert.match(
-        tela.renderizar(),
-        /É necessário informar o JWT para consultar a criança/,
-      );
+      assert.deepEqual(tela.substituicoes, ["/"]);
+      assert.doesNotMatch(tela.renderizar(), /role="alert"/);
       assert.equal(tela.chamadas.length, 0);
       assert.doesNotMatch(
         tela.renderizar(),
@@ -201,7 +206,7 @@ for (const token of [null, "", "   "]) {
   );
 }
 
-for (const falha of [401, 403, "rede"]) {
+for (const falha of [403, 404, 500, "rede"]) {
   test(
     "falha da consulta " +
       falha +
@@ -223,6 +228,9 @@ for (const falha of [401, 403, "rede"]) {
         tela.renderizar(),
         /Carregando dados|Criança A da fixture/,
       );
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
     },
   );
 }
@@ -296,7 +304,7 @@ for (const desfecho of ["sucesso", "erro"]) {
   );
 }
 
-test("sequência simulada de Strict Mode repete prompt e ignora a consulta invalidada", async () => {
+test("sequência simulada setup-cleanup-setup usa storage sem prompt e ignora consulta invalidada", async () => {
   const antiga = promessaControlada();
   let consultas = 0;
   const tela = pagina({
@@ -312,12 +320,12 @@ test("sequência simulada de Strict Mode repete prompt e ignora a consulta inval
   await tela.resolverConsulta();
   tela.renderizar();
   conferirCrianca(tela);
-  assert.equal(tela.prompts.length, 2);
+  assert.equal(tela.prompts.length, 0);
   assert.equal(tela.chamadas.length, 2);
   assert.equal(tela.errosConsole.length, 0);
 });
 
-test("repetição simulada com segundo prompt cancelado não mantém perfil ou carregamento", async () => {
+test("repetição simulada sem token redireciona sem manter perfil ou carregamento", async () => {
   const antiga = promessaControlada();
   const tela = pagina({ responder: () => antiga.promise });
   tela.renderizar();
@@ -327,7 +335,10 @@ test("repetição simulada com segundo prompt cancelado não mantém perfil ou c
   tela.repetirEfeitos();
   antiga.resolve({ data: criancas() });
   await tela.resolverConsulta();
-  assert.match(tela.renderizar(), /É necessário informar o JWT/);
+  assert.deepEqual(tela.substituicoes, ["/"]);
+  assert.equal(tela.prompts.length, 0);
+  assert.equal(tela.chamadas.length, 1);
+  assert.doesNotMatch(tela.renderizar(), /role="alert"/);
   assert.doesNotMatch(
     tela.renderizar(),
     /Criança A da fixture|Carregando dados/,
@@ -353,7 +364,7 @@ for (const ativa of [true, false]) {
       assert.equal(escrita.url, URL_LISTA + "/" + CA + "/permissao");
       assert.equal(escrita.body.permissaoAtiva, !ativa);
       assert.equal(typeof escrita.body.permissaoAtiva, "boolean");
-      assert.equal(escrita.config.headers.Authorization, "Bearer jwt-ficticio");
+      assert.equal(escrita.config, undefined);
       assert.equal(
         permissao(tela),
         "Permissão para jogar: " + (ativa ? "Desativada" : "Ativa"),
@@ -394,7 +405,7 @@ for (const valor of ["1", "30", "1440"]) {
       assert.equal(escrita.metodo, "PATCH");
       assert.equal(escrita.url, URL_LISTA + "/" + CA + "/limite-tempo");
       assert.equal(escrita.body.limiteTempoDiario, Number(valor));
-      assert.equal(escrita.config.headers.Authorization, "Bearer jwt-ficticio");
+      assert.equal(escrita.config, undefined);
       assert.deepEqual(tela.alertas, ["Limite diário atualizado com sucesso."]);
     },
   );
@@ -443,7 +454,7 @@ test("criança sem limite mostra campo vazio e pode remover limite enviando null
   assert.equal(escrita.metodo, "PATCH");
   assert.equal(escrita.url, URL_LISTA + "/" + CA + "/limite-tempo");
   assert.deepEqual({ ...escrita.body }, { limiteTempoDiario: null });
-  assert.equal(escrita.config.headers.Authorization, "Bearer jwt-ficticio");
+  assert.equal(escrita.config, undefined);
   assert.deepEqual(tela.alertas, ["Limite diário removido com sucesso."]);
   abrir(tela, "Limite de tempo por dia");
   assert.equal(limite(tela).props.value, "");
@@ -470,7 +481,7 @@ test("DELETE somente após confirmar, usando Crianca._id, JWT e navegação apó
   const escrita = escritas(tela)[0];
   assert.equal(escrita.metodo, "DELETE");
   assert.equal(escrita.url, URL_LISTA + "/" + CA + "/vinculo");
-  assert.equal(escrita.config.headers.Authorization, "Bearer jwt-ficticio");
+  assert.equal(escrita.config, undefined);
   assert.deepEqual(tela.alertas, ["Criança desvinculada com sucesso."]);
   assert.deepEqual(tela.navegacoes, ["/responsavel/contas"]);
 });
@@ -538,6 +549,9 @@ for (const [operacao, mensagem] of [
       tela.renderizar();
       assert.deepEqual(tela.alertas, [mensagem]);
       assert.deepEqual(tela.navegacoes, []);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.equal(tela.prompts.length, 0);
       assert.equal(acao(tela, operacao).props.disabled, false);
     },
   );
@@ -717,7 +731,7 @@ test("erro de gravação antiga não deve aparecer na seleção de outra crianç
 // Revalidação das correções: a versão da seleção deve diferenciar a primeira
 // visita a A da visita seguinte, mesmo quando o ID volta ao mesmo valor.
 for (const operacao of OPERACOES) {
-  for (const desfecho of ["sucesso", "erro"]) {
+  for (const desfecho of ["sucesso", "erro", "401"]) {
     for (const ciclo of ["A-B", "A-B-A", "cleanup", "repeticao-efeito"]) {
       test(
         "revalidação: " +
@@ -764,7 +778,7 @@ for (const operacao of OPERACOES) {
           else
             antiga.reject({
               response: {
-                status: 403,
+                status: desfecho === "401" ? 401 : 403,
                 data: { mensagem: "Erro obsoleto de A" },
               },
             });
@@ -778,6 +792,9 @@ for (const operacao of OPERACOES) {
           assert.deepEqual(tela.alertas, []);
           assert.deepEqual(tela.navegacoes, []);
           assert.equal(tela.errosConsole.length, 0);
+          assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+          assert.ok(tela.armazenamento.has("usuario"));
+          assert.deepEqual(tela.substituicoes, []);
           assert.equal(escritas(tela).length, 1);
           assert.ok(escritas(tela)[0].url.includes("/" + CA + "/"));
 
@@ -800,7 +817,7 @@ for (const operacao of OPERACOES) {
 }
 
 for (const operacao of OPERACOES) {
-  for (const desfecho of ["sucesso", "erro"]) {
+  for (const desfecho of ["sucesso", "erro", "401"]) {
     for (const ciclo of ["A-B", "A-B-A"]) {
       test(
         "revalidação: finally de " +
@@ -853,7 +870,7 @@ for (const operacao of OPERACOES) {
           else
             antiga.reject({
               response: {
-                status: 403,
+                status: desfecho === "401" ? 401 : 403,
                 data: { mensagem: "Erro da operação antiga" },
               },
             });
@@ -862,6 +879,9 @@ for (const operacao of OPERACOES) {
           assert.deepEqual(tela.alertas, []);
           assert.deepEqual(tela.navegacoes, []);
           assert.equal(tela.errosConsole.length, 0);
+          assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+          assert.ok(tela.armazenamento.has("usuario"));
+          assert.deepEqual(tela.substituicoes, []);
           tela.renderizar();
           assert.equal(texto(dialogo(tela)), textoModalAtual);
           assert.equal(
@@ -1016,3 +1036,408 @@ for (const desfecho of ["sucesso", "erro"]) {
     },
   );
 }
+
+function conferirSessaoRemovida(tela) {
+  assert.equal(tela.armazenamento.has("token"), false);
+  assert.equal(tela.armazenamento.has("usuario"), false);
+  assert.deepEqual(tela.substituicoes, ["/"]);
+  assert.equal(tela.prompts.length, 0);
+}
+
+for (const status of [403, 404, 500]) {
+  test(`GET ${status} preserva mensagem backend e sessão`, async () => {
+    const mensagem = `Falha específica da consulta ${status}`;
+    const tela = await carregar({
+      responder: () =>
+        Promise.reject({ response: { status, data: { mensagem } } }),
+    });
+    assert.ok(tela.renderizar().includes('role="alert">' + mensagem));
+    assert.doesNotMatch(
+      tela.renderizar(),
+      /Carregando dados|Criança A da fixture/,
+    );
+    assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+    assert.ok(tela.armazenamento.has("usuario"));
+    assert.deepEqual(tela.substituicoes, []);
+  });
+}
+
+test("GET 401 remove sessão e redireciona sem perfil, ações ou loading", async () => {
+  const tela = await carregar({
+    responder: () =>
+      Promise.reject({
+        response: { status: 401, data: { mensagem: "Token expirado" } },
+      }),
+  });
+  conferirSessaoRemovida(tela);
+  assert.doesNotMatch(
+    tela.renderizar(),
+    /role="alert"|Carregando dados|Criança A da fixture/,
+  );
+  assert.equal(elementos(tela.arvore, (n) => n.type === "button").length, 0);
+});
+
+test("sem token nem usuario não consulta e redireciona ao login", async () => {
+  const tela = await carregar({ token: null, usuario: null });
+  assert.equal(tela.chamadas.length, 0);
+  conferirSessaoRemovida(tela);
+});
+
+test("GET com interceptor Axios real usa token do mesmo localStorage", async () => {
+  const tela = await carregar({
+    usarApiReal: true,
+    token: "jwt-interceptor-ficticio",
+  });
+  conferirCrianca(tela);
+  assert.equal(tela.chamadas.length, 1);
+  assert.equal(tela.chamadas[0].url, URL_LISTA);
+  assert.equal(
+    tela.chamadas[0].config.headers.Authorization,
+    "Bearer jwt-interceptor-ficticio",
+  );
+  assert.deepEqual(tela.operacoesStorage, [
+    { metodo: "getItem", chave: "token" },
+    { metodo: "getItem", chave: "token" },
+  ]);
+});
+
+for (const operacao of OPERACOES) {
+  test(`401 em ${operacao} limpa sessão, perfil/modal e redireciona`, async () => {
+    const tela = await carregar({
+      responder: (url) =>
+        url === URL_LISTA
+          ? { data: criancas() }
+          : Promise.reject({
+              response: { status: 401, data: { mensagem: "Token expirado" } },
+            }),
+    });
+    tela.localStorage.setItem("preferencia", "preservar");
+    preparar(tela, operacao);
+    await acao(tela, operacao).props.onClick();
+    tela.renderizar();
+    conferirSessaoRemovida(tela);
+    assert.equal(tela.armazenamento.get("preferencia"), "preservar");
+    assert.equal(dialogo(tela), undefined);
+    assert.doesNotMatch(tela.renderizar(), /Criança A da fixture|role="alert"/);
+    assert.deepEqual(tela.alertas, []);
+    assert.equal(escritas(tela).length, 1);
+    assert.equal(escritas(tela)[0].config, undefined);
+  });
+
+  for (const token of [null, "", "   "]) {
+    test(`${operacao} sem token ${JSON.stringify(token)} não grava e redireciona`, async () => {
+      const tela = await carregar();
+      preparar(tela, operacao);
+      tela.definirToken(token);
+      await acao(tela, operacao).props.onClick();
+      conferirSessaoRemovida(tela);
+      assert.equal(escritas(tela).length, 0);
+      assert.deepEqual(tela.alertas, []);
+    });
+  }
+
+  for (const status of [403, 404, 500]) {
+    for (const comMensagem of [true, false]) {
+      test(`${operacao} HTTP ${status} ${comMensagem ? "preserva mensagem" : "usa fallback"} e mantém sessão/modal`, async () => {
+        const mensagem = `Falha backend ${operacao} ${status}`;
+        const tela = await carregar({
+          responder: (url) =>
+            url === URL_LISTA
+              ? { data: criancas() }
+              : Promise.reject({
+                  response: { status, data: comMensagem ? { mensagem } : {} },
+                }),
+        });
+        preparar(tela, operacao);
+        await acao(tela, operacao).props.onClick();
+        tela.renderizar();
+        conferirCrianca(tela);
+        assert.ok(dialogo(tela));
+        assert.equal(acao(tela, operacao).props.disabled, false);
+        assert.deepEqual(tela.alertas, [
+          comMensagem ? mensagem : FALLBACKS[operacao],
+        ]);
+        assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+        assert.ok(tela.armazenamento.has("usuario"));
+        assert.deepEqual(tela.navegacoes, []);
+        assert.equal(tela.prompts.length, 0);
+      });
+    }
+  }
+
+  for (const desfecho of ["sucesso", "401"]) {
+    test(`idAtualRef ignora ${operacao} ${desfecho} após render de B antes do efeito`, async () => {
+      const pendente = promessaControlada();
+      const tela = await carregar({
+        responder: (url) =>
+          url === URL_LISTA ? { data: criancas() } : pendente.promise,
+      });
+      preparar(tela, operacao);
+      const conclusao = acao(tela, operacao).props.onClick();
+      await tela.resolverConsulta();
+      tela.mudarCrianca(UB);
+      tela.renderizar(); // Atualiza idAtualRef; ainda não executa cleanup/setup.
+      const antes = tela.atualizacoesEstado.length;
+      if (desfecho === "sucesso")
+        pendente.resolve({ data: { limiteTempoDiario: 90 } });
+      else pendente.reject({ response: { status: 401 } });
+      await conclusao;
+      assert.equal(tela.atualizacoesEstado.length, antes);
+      assert.deepEqual(tela.alertas, []);
+      assert.deepEqual(tela.navegacoes, []);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      tela.executarEfeitos();
+      await tela.resolverConsulta();
+      tela.renderizar();
+      conferirCrianca(tela, "Criança B da fixture");
+    });
+  }
+}
+
+test("preserva HTML, CSS, metadados e estrutura dos três modais", async () => {
+  const tela = await carregar();
+  const html = tela.renderizar();
+  assert.match(html, /<main class="pagina">/);
+  assert.match(html, /<section class="painel"><div class="perfil">/);
+  assert.match(html, /class="avatar"/);
+  assert.match(html, /<p class="status">Permissão para jogar: Ativa<\/p>/);
+  assert.match(html, /<div class="acoes">/);
+  assert.match(
+    html,
+    /src="\/images\/logo.png" alt="Logo ConectaMente" class="logo"/,
+  );
+  const voltar = buscar(
+    tela,
+    (n) => n.props["aria-label"] === "Voltar para contas",
+  );
+  assert.equal(voltar.props.href, "/responsavel/contas");
+  assert.equal(voltar.props.className, "voltar");
+  buscar(
+    tela,
+    (n) =>
+      n.type === "title" && texto(n) === "Detalhes da Conta | ConectaMente",
+  );
+  buscar(
+    tela,
+    (n) =>
+      n.type === "meta" &&
+      n.props.name === "description" &&
+      n.props.content === "Gerenciamento da conta da criança no ConectaMente.",
+  );
+  for (const operacao of ["permissao", "salvar-limite", "desvincular"]) {
+    preparar(tela, operacao);
+    assert.equal(dialogo(tela).props["aria-modal"], "true");
+    assert.equal(dialogo(tela).props.className, "modal");
+    buscar(tela, (n) => n.props.className === "fundoModal");
+    buscar(tela, (n) => n.props.className === "botoesModal");
+    buscar(tela, (n) => n.props["aria-label"] === "Fechar modal");
+    let interrompeu = false;
+    dialogo(tela).props.onClick({
+      stopPropagation() {
+        interrompeu = true;
+      },
+    });
+    assert.equal(interrompeu, true);
+    if (operacao === "salvar-limite") {
+      assert.equal(limite(tela).props.type, "number");
+      assert.equal(limite(tela).props.min, "1");
+      buscar(tela, (n) => n.type === "label" && n.props.htmlFor === "limite");
+    }
+    buscar(
+      tela,
+      (n) => n.props["aria-label"] === "Fechar modal",
+    ).props.onClick();
+    tela.renderizar();
+    assert.equal(dialogo(tela), undefined);
+  }
+});
+
+for (const ciclo of ["cleanup", "A-B", "A-B-A"]) {
+  test(`GET 401 antigo após ${ciclo} não remove sessão nem redireciona`, async () => {
+    const antiga = promessaControlada();
+    let consultas = 0;
+    const tela = pagina({
+      responder: () =>
+        ++consultas === 1 ? antiga.promise : { data: criancas() },
+    });
+    tela.renderizar();
+    tela.executarEfeitos();
+    await tela.resolverConsulta();
+    if (ciclo === "cleanup") tela.limparEfeitos();
+    else {
+      tela.mudarCrianca(UB);
+      await consultar(tela);
+      if (ciclo === "A-B-A") {
+        tela.mudarCrianca(UA);
+        await consultar(tela);
+      }
+    }
+    const antes = tela.atualizacoesEstado.length;
+    antiga.reject({ response: { status: 401 } });
+    await tela.resolverConsulta();
+    assert.equal(tela.atualizacoesEstado.length, antes);
+    assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+    assert.ok(tela.armazenamento.has("usuario"));
+    assert.deepEqual(tela.navegacoes, []);
+  });
+}
+
+test(
+  "HTTP local real: JWT automático em GET, bloquear/liberar, salvar/remover limite e desvincular",
+  { timeout: 5000 },
+  async (t) => {
+    const { createServer } = require("node:http");
+    const { once } = require("node:events");
+    const { readFileSync } = require("node:fs");
+    const path = require("node:path");
+    const vm = require("node:vm");
+    const babel = require("next/dist/compiled/babel/core");
+    const commonjs = require("next/dist/compiled/babel/plugin-transform-modules-commonjs");
+    const recebidas = [];
+    const servidor = createServer(async (req, res) => {
+      let textoBody = "";
+      for await (const chunk of req) textoBody += chunk;
+      const body = textoBody ? JSON.parse(textoBody) : undefined;
+      recebidas.push({
+        metodo: req.method,
+        url: req.url,
+        body,
+        authorization: req.headers.authorization,
+      });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify(
+          req.method === "GET"
+            ? criancas()
+            : (body ?? { mensagem: "Vínculo removido" }),
+        ),
+      );
+    });
+    servidor.listen(0, "127.0.0.1");
+    await once(servidor, "listening");
+    t.after(() => new Promise((resolve) => servidor.close(resolve)));
+    let apiReal;
+    const pendentes = [];
+    const tela = pagina({
+      token: "jwt-http-ficticio",
+      responder: (url, config, body) => {
+        const method = url.endsWith("/vinculo")
+          ? "delete"
+          : body === undefined
+            ? "get"
+            : "patch";
+        const consulta = apiReal.request({
+          ...config,
+          url,
+          method,
+          data: body,
+        });
+        pendentes.push(consulta);
+        return consulta;
+      },
+    });
+    const arquivo = path.resolve(__dirname, "../src/services/api.js");
+    const { code } = babel.transformSync(readFileSync(arquivo, "utf8"), {
+      filename: arquivo,
+      babelrc: false,
+      configFile: false,
+      plugins: [commonjs],
+    });
+    const contexto = {
+      exports: {},
+      require,
+      localStorage: tela.localStorage,
+      window: { localStorage: tela.localStorage },
+      process: {
+        env: {
+          NEXT_PUBLIC_API_URL: `http://127.0.0.1:${servidor.address().port}`,
+        },
+      },
+    };
+    vm.runInNewContext(code, contexto, { filename: arquivo });
+    apiReal = contexto.exports.default;
+    tela.renderizar();
+    tela.executarEfeitos();
+    await tela.resolverConsulta();
+    assert.equal(pendentes.length, 1);
+    await Promise.all(pendentes);
+    await tela.resolverConsulta();
+    tela.renderizar();
+    conferirCrianca(tela);
+
+    preparar(tela, "permissao");
+    await acao(tela, "permissao").props.onClick();
+    tela.renderizar();
+    assert.equal(permissao(tela), "Permissão para jogar: Desativada");
+    preparar(tela, "permissao");
+    await acao(tela, "permissao").props.onClick();
+    tela.renderizar();
+    assert.equal(permissao(tela), "Permissão para jogar: Ativa");
+    preparar(tela, "salvar-limite");
+    await acao(tela, "salvar-limite").props.onClick();
+    tela.renderizar();
+    preparar(tela, "remover-limite");
+    assert.equal(limite(tela).props.value, 90);
+    await acao(tela, "remover-limite").props.onClick();
+    tela.renderizar();
+    abrir(tela, "Limite de tempo por dia");
+    assert.equal(limite(tela).props.value, "");
+    buscar(
+      tela,
+      (n) => n.props["aria-label"] === "Fechar modal",
+    ).props.onClick();
+    tela.renderizar();
+    preparar(tela, "desvincular");
+    assert.match(
+      tela.renderizar(),
+      /A conta e o histórico da criança serão preservados/,
+    );
+    await acao(tela, "desvincular").props.onClick();
+    tela.renderizar();
+
+    assert.deepEqual(
+      recebidas.map(({ metodo, url, body }) => ({ metodo, url, body })),
+      [
+        { metodo: "GET", url: URL_LISTA, body: undefined },
+        {
+          metodo: "PATCH",
+          url: `${URL_LISTA}/${CA}/permissao`,
+          body: { permissaoAtiva: false },
+        },
+        {
+          metodo: "PATCH",
+          url: `${URL_LISTA}/${CA}/permissao`,
+          body: { permissaoAtiva: true },
+        },
+        {
+          metodo: "PATCH",
+          url: `${URL_LISTA}/${CA}/limite-tempo`,
+          body: { limiteTempoDiario: 90 },
+        },
+        {
+          metodo: "PATCH",
+          url: `${URL_LISTA}/${CA}/limite-tempo`,
+          body: { limiteTempoDiario: null },
+        },
+        {
+          metodo: "DELETE",
+          url: `${URL_LISTA}/${CA}/vinculo`,
+          body: undefined,
+        },
+      ],
+    );
+    assert.ok(
+      recebidas.every((r) => r.authorization === "Bearer jwt-http-ficticio"),
+    );
+    assert.ok(tela.chamadas.every((c) => c.config === undefined));
+    assert.equal(tela.prompts.length, 0);
+    assert.deepEqual(tela.alertas, [
+      "Limite diário atualizado com sucesso.",
+      "Limite diário removido com sucesso.",
+      "Criança desvinculada com sucesso.",
+    ]);
+    assert.deepEqual(tela.navegacoes, ["/responsavel/contas"]);
+    assert.equal(dialogo(tela), undefined);
+  },
+);

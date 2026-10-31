@@ -27,6 +27,7 @@ function dados(tarefasConcluidas = 4, totalTentativas = 29, acertos = 17) {
 function pagina({ resposta = dados(), responder, ...extras } = {}) {
   return montarRelatorio({
     pagina: "resumo",
+    usarApiReal: true,
     id: A,
     responder: responder || (() => ({ data: resposta })),
     ...extras,
@@ -62,8 +63,8 @@ function semIndicadores(html) {
   assert.doesNotMatch(html, /<article|<strong>/);
 }
 
-test("consulta somente resumo-desempenho com usuarioId da URL e JWT Bearer do responsável", async () => {
-  const tela = pagina({ token: "  jwt-responsavel-ficticio  " });
+test("consulta somente resumo-desempenho com Usuario._id da URL e JWT do storage pelo interceptor real", async () => {
+  const tela = pagina({ token: "jwt-responsavel-ficticio" });
   await consultar(tela);
   assert.equal(tela.chamadas.length, 1);
   assert.equal(tela.chamadas[0].url, "/criancas/" + A + "/resumo-desempenho");
@@ -71,6 +72,18 @@ test("consulta somente resumo-desempenho com usuarioId da URL e JWT Bearer do re
     tela.chamadas[0].config.headers.Authorization,
     "Bearer jwt-responsavel-ficticio",
   );
+  assert.equal(tela.chamadas[0].config.method, "get");
+  assert.notEqual(
+    dados().criancaId,
+    A,
+    "Crianca._id difere do Usuario._id da URL",
+  );
+  assert.equal(tela.prompts.length, 0);
+  assert.deepEqual(tela.operacoesStorage, [
+    { metodo: "getItem", chave: "token" },
+    { metodo: "getItem", chave: "token" },
+  ]);
+  assert.deepEqual(tela.substituicoes, []);
 });
 
 test("exibe tarefas concluídas, tentativas e acertos recebidos em resumo", async () => {
@@ -142,11 +155,13 @@ for (const token of [null, "", "   "]) {
   test(
     "JWT ausente (" +
       JSON.stringify(token) +
-      ") mostra erro e não consulta API",
+      ") redireciona ao login sem prompt nem consulta à API",
     async () => {
       const tela = pagina({ token });
       const html = await consultar(tela);
-      assert.match(html, /role="alert">É necessário informar o JWT\./);
+      assert.deepEqual(tela.substituicoes, ["/"]);
+      assert.equal(tela.prompts.length, 0);
+      assert.doesNotMatch(html, /role="alert"/);
       assert.equal(tela.chamadas.length, 0);
       assert.doesNotMatch(html, /Carregando progresso/);
       semIndicadores(html);
@@ -154,14 +169,11 @@ for (const token of [null, "", "   "]) {
   );
 }
 
-for (const status of [401, 403]) {
+for (const status of [403, 404, 500]) {
   test(
     "HTTP " + status + " mostra mensagem da API sem indicadores",
     async () => {
-      const mensagem =
-        status === 401
-          ? "Token inválido ou expirado"
-          : "Você não tem permissão para consultar este resumo";
+      const mensagem = "Mensagem específica do backend para HTTP " + status;
       const tela = pagina({
         responder: () =>
           Promise.reject({ response: { status, data: { mensagem } } }),
@@ -169,7 +181,10 @@ for (const status of [401, 403]) {
       const html = await consultar(tela);
       assert.ok(html.includes('role="alert">' + mensagem));
       assert.doesNotMatch(html, /Carregando progresso/);
-      assert.equal(tela.errosConsole.length, 1);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
+      assert.equal(tela.prompts.length, 0);
       semIndicadores(html);
     },
   );
@@ -183,16 +198,21 @@ test("falha de rede usa mensagem padrão e encerra carregamento", async () => {
   assert.match(html, /role="alert">Não foi possível consultar o progresso\./);
   assert.doesNotMatch(html, /Carregando progresso/);
   semIndicadores(html);
+  assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+  assert.ok(tela.armazenamento.has("usuario"));
+  assert.deepEqual(tela.substituicoes, []);
+  assert.equal(tela.prompts.length, 0);
 });
 
-test("erro HTTP sem mensagem usa o texto padrão", async () => {
-  const tela = pagina({
-    responder: () => Promise.reject({ response: { status: 403, data: {} } }),
+for (const status of [403, 404, 500])
+  test("HTTP " + status + " sem mensagem usa o texto padrão", async () => {
+    const tela = pagina({
+      responder: () => Promise.reject({ response: { status, data: {} } }),
+    });
+    const html = await consultar(tela);
+    assert.match(html, /Não foi possível consultar o progresso\./);
+    semIndicadores(html);
   });
-  const html = await consultar(tela);
-  assert.match(html, /Não foi possível consultar o progresso\./);
-  semIndicadores(html);
-});
 
 test("carregamento oculta indicadores até a resposta da API", async () => {
   const pendente = promessaControlada();
@@ -262,13 +282,16 @@ for (const falha of ["401", "403", "rede", "sem-jwt"]) {
       tela.mudarCrianca(B);
       if (falha === "sem-jwt") tela.definirToken(null);
       const html = await consultar(tela);
-      assert.match(html, /role="alert"/);
+      if (["401", "sem-jwt"].includes(falha)) {
+        assert.deepEqual(tela.substituicoes, ["/"]);
+        assert.doesNotMatch(html, /role="alert"|Carregando progresso/);
+      } else assert.match(html, /role="alert"/);
       semIndicadores(html);
     },
   );
 }
 
-for (const desfecho of ["sucesso", "erro"]) {
+for (const desfecho of ["sucesso", "erro", "401"]) {
   test(
     "resposta antiga com " + desfecho + " não altera os indicadores atuais",
     async () => {
@@ -285,13 +308,19 @@ for (const desfecho of ["sucesso", "erro"]) {
       if (desfecho === "sucesso") antiga.resolve({ data: dados() });
       else
         antiga.reject({
-          response: { status: 403, data: { mensagem: "Erro antigo de A" } },
+          response: {
+            status: desfecho === "401" ? 401 : 403,
+            data: { mensagem: "Erro antigo de A" },
+          },
         });
       await tela.resolverConsulta();
       const html = tela.renderizar();
       conferirIndicadores(html, 8, 53, 31);
       assert.doesNotMatch(html, /Erro antigo de A/);
       assert.equal(tela.errosConsole.length, 0);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
     },
   );
 }
@@ -365,7 +394,8 @@ test("resultado antigo não aparece após JWT ausente na nova consulta", async (
   antiga.resolve({ data: dados() });
   await tela.resolverConsulta();
   const html = tela.renderizar();
-  assert.match(html, /É necessário informar o JWT/);
+  assert.deepEqual(tela.substituicoes, ["/"]);
+  assert.doesNotMatch(html, /role="alert"|Carregando progresso/);
   semIndicadores(html);
   assert.equal(tela.chamadas.length, 1);
 });
@@ -394,4 +424,114 @@ test("troca para criança sem histórico substitui valores anteriores por zeros 
   await consultar(tela);
   tela.mudarCrianca(B);
   conferirIndicadores(await consultar(tela), 0, 0, 0);
+});
+
+test("HTTP 401 remove token e usuário e redireciona ao login sem indicadores", async () => {
+  const tela = pagina({
+    responder: () =>
+      Promise.reject({
+        response: { status: 401, data: { mensagem: "Token expirado" } },
+      }),
+  });
+  const html = await consultar(tela);
+  assert.equal(tela.chamadas.length, 1);
+  assert.equal(tela.armazenamento.has("token"), false);
+  assert.equal(tela.armazenamento.has("usuario"), false);
+  assert.deepEqual(
+    tela.operacoesStorage.filter((op) => op.metodo === "removeItem"),
+    [
+      { metodo: "removeItem", chave: "token" },
+      { metodo: "removeItem", chave: "usuario" },
+    ],
+  );
+  assert.deepEqual(tela.substituicoes, ["/"]);
+  assert.equal(tela.prompts.length, 0);
+  assert.doesNotMatch(html, /role="alert"|Carregando progresso/);
+  semIndicadores(html);
+});
+
+test("página delega Authorization ao interceptor sem fornecer headers explícitos", async () => {
+  const tela = pagina({ usarApiReal: false });
+  conferirIndicadores(await consultar(tela));
+  assert.equal(tela.chamadas[0].config, undefined);
+  assert.equal(tela.prompts.length, 0);
+});
+
+test("interceptor lê token atualizado do mesmo storage a cada consulta", async () => {
+  const tela = pagina();
+  await consultar(tela);
+  tela.definirToken("jwt-renovado-ficticio");
+  tela.mudarCrianca(B);
+  await consultar(tela);
+  assert.deepEqual(
+    tela.chamadas.map((c) => c.config.headers.Authorization),
+    ["Bearer jwt-ficticio", "Bearer jwt-renovado-ficticio"],
+  );
+  assert.equal(tela.chamadas[1].url, `/criancas/${B}/resumo-desempenho`);
+  assert.equal(tela.prompts.length, 0);
+});
+
+for (const desfecho of ["sucesso", "401"])
+  test("cleanup na desmontagem ignora " + desfecho + " atrasado", async () => {
+    const pendente = promessaControlada();
+    const tela = pagina({ responder: () => pendente.promise });
+    tela.renderizar();
+    tela.executarEfeitos();
+    await tela.resolverConsulta();
+    tela.limparEfeitos();
+    const antes = tela.atualizacoesEstado.length;
+    if (desfecho === "sucesso") pendente.resolve({ data: dados() });
+    else pendente.reject({ response: { status: 401 } });
+    await tela.resolverConsulta();
+    assert.equal(tela.atualizacoesEstado.length, antes);
+    assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+    assert.ok(tela.armazenamento.has("usuario"));
+    assert.deepEqual(tela.substituicoes, []);
+  });
+
+test("preserva estrutura, classes, imagens, metadados e retorno com Usuario._id", async () => {
+  const tela = pagina();
+  const html = await consultar(tela);
+  assert.match(html, /<main class="pagina">/);
+  assert.match(html, /<header class="cabecalho">/);
+  assert.match(html, /<section class="painel">/);
+  assert.match(html, /<div class="indicadores">/);
+  assert.equal([...html.matchAll(/<article class="indicador">/g)].length, 3);
+  assert.match(
+    html,
+    /src="\/images\/logo.png" alt="Logo ConectaMente" class="logo"/,
+  );
+  assert.match(
+    html,
+    /src="\/images\/majesticons_share.png" alt="" class="iconeVoltar"/,
+  );
+  function elementos(no) {
+    if (Array.isArray(no)) return no.flatMap(elementos);
+    if (!no?.props) return [];
+    return [no, ...elementos(no.props.children)];
+  }
+  const nos = elementos(tela.arvore);
+  const voltar = nos.find(
+    (no) => no.props["aria-label"] === "Voltar ao menu de rendimento",
+  );
+  assert.equal(voltar.props.className, "voltar");
+  assert.equal(voltar.props.href.pathname, "/responsavel/rendimento");
+  assert.equal(voltar.props.href.query.id, A);
+  assert.ok(
+    nos.some(
+      (no) =>
+        no.type === "title" &&
+        no.props.children === "Resumo de atividade | ConectaMente",
+    ),
+  );
+  assert.ok(
+    nos.some(
+      (no) =>
+        no.type === "meta" &&
+        no.props.name === "description" &&
+        no.props.content ===
+          "Resumo das atividades da criança no ConectaMente.",
+    ),
+  );
+  conferirIndicadores(html);
 });
