@@ -18,16 +18,15 @@ export default function Resumo() {
     let consultaAtiva = true;
 
     async function buscarProgresso() {
-      setCarregando(false);
+      setCarregando(true);
       setErro(null);
       setProgresso(null);
 
-      const token = window.prompt(
-        "Informe o JWT do responsável para teste:"
-      );
+      const token = localStorage.getItem("token");
 
       if (!token?.trim()) {
-        setErro("É necessário informar o JWT.");
+        setCarregando(false);
+        router.replace("/");
         return;
       }
 
@@ -35,24 +34,25 @@ export default function Resumo() {
 
       try {
         const resposta = await api.get(
-          `/criancas/${id}/resumo-desempenho`,
-          {
-            headers: {
-              Authorization: `Bearer ${token.trim()}`,
-            },
-          }
+          `/criancas/${id}/resumo-desempenho`
         );
-
         if (!consultaAtiva) return;
 
         setProgresso(resposta.data);
       } catch (error) {
         if (!consultaAtiva) return;
 
-        console.error(
-          "Erro ao consultar progresso:",
-          error.response?.status
-        );
+        const status = error.response?.status;
+
+        if (status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          setProgresso(null);
+          router.replace("/");
+          return;
+        }
+
+        setProgresso(null);
 
         setErro(
           error.response?.data?.mensagem ||
@@ -70,7 +70,7 @@ export default function Resumo() {
     return () => {
       consultaAtiva = false;
     };
-  }, [router.isReady, id]);
+  }, [router.isReady, router.replace, id]);
 
   const indicadores = [
     {

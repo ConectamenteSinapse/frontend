@@ -3,57 +3,73 @@ import Head from "next/head";
 import Link from "next/link";
 import api from "../../../services/api";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import styles from "./Contas.module.css";
 
 export default function Contas() {
-const [contas, setContas] = useState([]);
-const [carregando, setCarregando] = useState(false);
-const [erro, setErro] = useState(null);
-const [consultaRealizada, setConsultaRealizada] = useState(false);
-useEffect(() => {
-  let consultaAtiva = true;
-  async function buscarCriancas(token) {
-    setCarregando(true);
-    setErro(null);
+  const [contas, setContas] = useState([]);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const [consultaRealizada, setConsultaRealizada] = useState(false);
+  const router = useRouter();
 
-    try {
-      const resposta = await api.get(
-        "/responsaveis/minhas-criancas",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+  useEffect(() => {
+    let consultaAtiva = true;
+
+    async function buscarCriancas() {
+      setCarregando(true);
+      setErro(null);
+
+      try {
+        const resposta = await api.get("/responsaveis/minhas-criancas");
+
+        if (!consultaAtiva) return;
+        setContas(resposta.data);
+      } catch (erro) {
+        if (!consultaAtiva) return;
+
+        const status = erro.response?.status;
+
+        if (status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          setContas([]);
+          router.replace("/");
+          return;
         }
-      );
-      if (!consultaAtiva) return;
-      setContas(resposta.data);
-    } catch (erro) {
-      if (!consultaAtiva) return;
-      setErro("Não foi possível carregar as contas.");
-      console.error("Erro ao buscar crianças:", erro);
-    } finally {
-      if (consultaAtiva) {
-        setCarregando(false);
-        setConsultaRealizada(true);
+
+        if (status === 403) {
+          setContas([]);
+          setErro("Você não tem permissão para acessar estas contas.");
+          return;
+        }
+
+        setContas([]);
+        setErro("Não foi possível carregar as contas.");
+        console.error("Erro ao buscar crianças:", erro);
+      } finally {
+        if (consultaAtiva) {
+          setCarregando(false);
+          setConsultaRealizada(true);
+        }
       }
     }
-  }
 
-  const token = window.prompt("Informe o JWT de teste:");
+    const token = localStorage.getItem("token");
 
-  if (token?.trim()) {
-    buscarCriancas(token.trim());
-  } else {
-    setCarregando(false);
-    setContas([]);
-    setErro("É necessário informar o JWT do responsável.");
-    setConsultaRealizada(true);
-  }
-  return () => {
-    consultaAtiva = false;
-  };
-}, []);
+    if (token?.trim()) {
+      buscarCriancas();
+    } else {
+      setCarregando(false);
+      setContas([]);
+      setConsultaRealizada(true);
+      router.replace("/");
+    }
 
+    return () => {
+      consultaAtiva = false;
+    };
+  }, [router]);
 
   return (
     <>
@@ -63,7 +79,6 @@ useEffect(() => {
 
       <main className={styles.pagina}>
         <Link href="/responsavel" className={styles.voltar}>
-          
         </Link>
 
         <img

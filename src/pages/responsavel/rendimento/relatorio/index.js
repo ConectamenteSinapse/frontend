@@ -1,4 +1,3 @@
-
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -20,20 +19,19 @@ export default function Relatorio() {
     if (!router.isReady || !id) return;
       let consultaAtiva = true;
     async function buscarRelatorio() {
-      const token = window.prompt(
-        "Informe o JWT do responsável para teste:"
-      );
-
-      if (!token?.trim()) {
-        setErro("É necessário informar o JWT.");
-        return;
-      }
-
       setCarregando(true);
       setErro(null);
       setCrianca(null);
       setProgresso(null);
       setComodos([]);
+
+      const token = localStorage.getItem("token");
+
+      if (!token?.trim()) {
+        setCarregando(false);
+        router.replace("/");
+        return;
+      }
 
       try {
         const configuracao = {
@@ -43,11 +41,11 @@ export default function Relatorio() {
         };
 
         const [respostaCriancas, respostaProgresso, respostaComodos] =
-          await Promise.all([
-            api.get("/responsaveis/minhas-criancas", configuracao),
-            api.get(`/criancas/${id}/resumo-desempenho`, configuracao),
-            api.get("/comodos", configuracao),
-          ]);
+        await Promise.all([
+          api.get("/responsaveis/minhas-criancas"),
+          api.get(`/criancas/${id}/resumo-desempenho`),
+          api.get("/comodos"),
+        ]);
         if (!consultaAtiva) return;
         const criancaEncontrada = respostaCriancas.data.find(
           (item) => String(item.usuarioId) === String(id)
@@ -66,10 +64,20 @@ export default function Relatorio() {
         );
       } catch (error) {
         if (!consultaAtiva) return;
-        console.error(
-          "Erro ao consultar relatório:",
-          error.response?.status
-        );
+
+        if (error.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          setCrianca(null);
+          setProgresso(null);
+          setComodos([]);
+          router.replace("/");
+          return;
+        }
+
+        setCrianca(null);
+        setProgresso(null);
+        setComodos([]);
 
         setErro(
           error.response?.data?.mensagem ||

@@ -12,7 +12,6 @@ export default function Detalhes() {
   const idAtualRef = useRef(id);
   idAtualRef.current = id;
   const versaoSelecaoRef = useRef(0);
-  const [tokenResponsavel, setTokenResponsavel] = useState("");
   const [modal, setModal] = useState("");
   const [limite, setLimite] = useState(150);
   const [ativa, setAtiva] = useState(true);
@@ -20,75 +19,91 @@ export default function Detalhes() {
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(null);
-  useEffect(() => {
+  
+useEffect(() => {
     versaoSelecaoRef.current += 1;
-  if (!router.isReady || !id) return;
-  let consultaAtiva = true;
-  async function buscarCrianca() {
-    const token = window.prompt("Informe o JWT do responsável para teste:");
 
-    if (!token?.trim()) {
-      setTokenResponsavel("");
+    if (!router.isReady || !id) return;
+
+    let consultaAtiva = true;
+
+    async function buscarCrianca() {
       setCrianca(null);
       setModal("");
       setSalvando(false);
-      setCarregando(false);
-      setErro("É necessário informar o JWT para consultar a criança.");
-      return;
-    }
-    setTokenResponsavel(token.trim());
-    setCrianca(null);
-    setModal("");
-    setSalvando(false);
-    setCarregando(true);
-    setErro(null);
+      setCarregando(true);
+      setErro(null);
 
-    try {
-      const resposta = await api.get(
-        "/responsaveis/minhas-criancas",
-        {
-          headers: {
-            Authorization: `Bearer ${token.trim()}`,
-          },
-        }
-      );
-        if (!consultaAtiva) return;
+      const token = localStorage.getItem("token");
 
-      const encontrada = resposta.data.find(
-        (item) => String(item.usuarioId) === String(id)
-      );
-
-      if (!encontrada) {
-        setErro("Criança não encontrada entre as contas vinculadas.");
+      if (!token?.trim()) {
+        setCarregando(false);
+        router.replace("/");
         return;
       }
 
-      setCrianca(encontrada);
-      setAtiva(encontrada.permissaoAtiva);
-      setLimite(encontrada.limiteTempoDiario ?? "");
-    } catch (erro) {
-      if (!consultaAtiva) return;
-      console.error("Erro ao consultar criança:", erro);
-      setErro("Não foi possível carregar os dados da criança.");
-    } finally {
-      if (consultaAtiva) {
-        setCarregando(false);
+      try {
+        const resposta = await api.get(
+          "/responsaveis/minhas-criancas"
+        );
+
+        if (!consultaAtiva) return;
+
+        const encontrada = resposta.data.find(
+          (item) => String(item.usuarioId) === String(id)
+        );
+
+        if (!encontrada) {
+          setErro("Criança não encontrada entre as contas vinculadas.");
+          return;
+        }
+
+        setCrianca(encontrada);
+        setAtiva(encontrada.permissaoAtiva);
+        setLimite(encontrada.limiteTempoDiario ?? "");
+      } catch (erro) {
+        if (!consultaAtiva) return;
+
+        if (erro.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          setCrianca(null);
+          router.replace("/");
+          return;
+        }
+
+        setErro(
+          erro.response?.data?.mensagem ||
+            "Não foi possível carregar os dados da criança."
+        );
+      } finally {
+        if (consultaAtiva) {
+          setCarregando(false);
+        }
       }
     }
-  }
 
-  buscarCrianca();
-  return () => {
-    consultaAtiva = false;
-    versaoSelecaoRef.current += 1;
-  };
-}, [router.isReady, id]);
+    buscarCrianca();
+
+    return () => {
+      consultaAtiva = false;
+      versaoSelecaoRef.current += 1;
+    };
+  }, [router.isReady, router.replace, id]);
+
 
   async function confirmarExclusao() {
     if (salvando) return;
 
-    if (!crianca?._id || !tokenResponsavel) {
-      alert("Não foi possível identificar a criança ou a autenticação.");
+    if (!crianca?._id) {
+      alert("Não foi possível identificar a criança.");
+      return;
+    }
+
+    if (!localStorage.getItem("token")?.trim()) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      router.replace("/");
       return;
     }
 
@@ -99,12 +114,7 @@ export default function Detalhes() {
 
     try {
       await api.delete(
-        `/responsaveis/minhas-criancas/${crianca._id}/vinculo`,
-        {
-          headers: {
-            Authorization: `Bearer ${tokenResponsavel}`,
-          },
-        }
+        `/responsaveis/minhas-criancas/${crianca._id}/vinculo`
       );
 
       if (
@@ -124,7 +134,14 @@ export default function Detalhes() {
       ) {
         return;
       }
-
+      if (erro.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      setModal("");
+      setCrianca(null);
+      router.replace("/");
+      return;
+      }
       console.error("Erro ao desvincular criança:", erro.response?.status);
 
       alert(
@@ -144,8 +161,15 @@ export default function Detalhes() {
   async function salvarLimite() {
     if (salvando) return;
 
-    if (!crianca?._id || !tokenResponsavel) {
-      alert("Não foi possível identificar a criança ou a autenticação.");
+    if (!crianca?._id) {
+      alert("Não foi possível identificar a criança.");
+      return;
+    }
+
+    if (!localStorage.getItem("token")?.trim()) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      router.replace("/");
       return;
     }
 
@@ -166,11 +190,6 @@ export default function Detalhes() {
         `/responsaveis/minhas-criancas/${crianca._id}/limite-tempo`,
         {
           limiteTempoDiario: limiteNumerico,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${tokenResponsavel}`,
-          },
         }
       );
 
@@ -198,7 +217,19 @@ export default function Detalhes() {
         return;
       }
 
-      console.error("Erro ao atualizar limite:", erro.response?.status);
+      if (erro.response?.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("usuario");
+        setModal("");
+        setCrianca(null);
+        router.replace("/");
+        return;
+      }
+
+      console.error(
+        "Erro ao atualizar limite:",
+        erro.response?.status
+      );
 
       alert(
         erro.response?.data?.mensagem ||
@@ -216,8 +247,15 @@ export default function Detalhes() {
   async function removerLimite() {
     if (salvando) return;
 
-    if (!crianca?._id || !tokenResponsavel) {
-      alert("Não foi possível identificar a criança ou a autenticação.");
+    if (!crianca?._id) {
+      alert("Não foi possível identificar a criança.");
+      return;
+    }
+
+    if (!localStorage.getItem("token")?.trim()) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      router.replace("/");
       return;
     }
 
@@ -229,11 +267,8 @@ export default function Detalhes() {
     try {
       const resposta = await api.patch(
         `/responsaveis/minhas-criancas/${crianca._id}/limite-tempo`,
-        { limiteTempoDiario: null },
         {
-          headers: {
-            Authorization: `Bearer ${tokenResponsavel}`,
-          },
+          limiteTempoDiario: null,
         }
       );
 
@@ -260,7 +295,14 @@ export default function Detalhes() {
       ) {
         return;
       }
-
+      if (erro.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      setModal("");
+      setCrianca(null);
+      router.replace("/");
+      return;
+      }
       console.error("Erro ao remover limite:", erro.response?.status);
 
       alert(
@@ -279,8 +321,15 @@ export default function Detalhes() {
   async function alternarConta() {
     if (salvando) return;
 
-    if (!crianca?._id || !tokenResponsavel) {
-      alert("Não foi possível identificar a criança ou a autenticação.");
+    if (!crianca?._id) {
+      alert("Não foi possível identificar a criança.");
+      return;
+    }
+
+    if (!localStorage.getItem("token")?.trim()) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      router.replace("/");
       return;
     }
     const idDaOperacao = String(id);
@@ -290,11 +339,8 @@ export default function Detalhes() {
     try {
       await api.patch(
         `/responsaveis/minhas-criancas/${crianca._id}/permissao`,
-        { permissaoAtiva: novaPermissao },
         {
-          headers: {
-            Authorization: `Bearer ${tokenResponsavel}`,
-          },
+          permissaoAtiva: novaPermissao,
         }
       );
       if (String(idAtualRef.current) !== idDaOperacao || versaoSelecaoRef.current !== versaoDaOperacao) return;
@@ -309,6 +355,14 @@ export default function Detalhes() {
         String(idAtualRef.current) !== idDaOperacao ||
         versaoSelecaoRef.current !== versaoDaOperacao
       ) return;
+      if (erro.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      setModal("");
+      setCrianca(null);
+      router.replace("/");
+      return;
+      }
       console.error("Erro ao alterar permissão:", erro.response?.status);
 
       alert(

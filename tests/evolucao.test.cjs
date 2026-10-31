@@ -27,6 +27,7 @@ function resposta(evolucao = [dia("2026-10-30", 72)]) {
 function pagina({ dados = resposta(), responder, ...extras } = {}) {
   return montarRelatorio({
     pagina: "evolucao",
+    usarApiReal: true,
     id: A,
     responder: responder || (() => ({ data: dados })),
     ...extras,
@@ -37,6 +38,7 @@ async function consultar(tela) {
   tela.renderizar();
   tela.executarEfeitos();
   await tela.resolverConsulta();
+  assert.equal(tela.prompts.length, 0, "Não deve solicitar JWT por prompt");
   return tela.renderizar();
 }
 
@@ -68,8 +70,8 @@ function conferirDiaUnico(html, data = "30/10", y = 85.4) {
   assert.doesNotMatch(html, /NaN|Infinity|role="alert"|Carregando evolução/);
 }
 
-test("consulta somente evolucao-diaria pelo usuarioId e envia JWT do responsável com Bearer", async () => {
-  const tela = pagina({ token: "  jwt-responsavel-ficticio  " });
+test("consulta evolucao-diaria por Usuario._id e interceptor Axios real envia JWT do storage", async () => {
+  const tela = pagina({ token: "jwt-responsavel-ficticio" });
   await consultar(tela);
   assert.equal(tela.chamadas.length, 1);
   assert.equal(tela.chamadas[0].url, "/criancas/" + A + "/evolucao-diaria");
@@ -77,6 +79,12 @@ test("consulta somente evolucao-diaria pelo usuarioId e envia JWT do responsáve
     tela.chamadas[0].config.headers.Authorization,
     "Bearer jwt-responsavel-ficticio",
   );
+  assert.equal(tela.chamadas[0].config.method, "get");
+  assert.deepEqual(tela.operacoesStorage, [
+    { metodo: "getItem", chave: "token" },
+    { metodo: "getItem", chave: "token" },
+  ]);
+  assert.deepEqual(tela.substituicoes, []);
 });
 
 test("um único dia é representado no centro, com ponto e caminho válidos", async () => {
@@ -206,11 +214,12 @@ for (const token of [null, "", "   "]) {
   test(
     "JWT não informado (" +
       JSON.stringify(token) +
-      ") mostra erro e não consulta API",
+      ") redireciona ao login sem consultar API",
     async () => {
       const tela = pagina({ token });
       const html = await consultar(tela);
-      assert.match(html, /role="alert">É necessário informar o JWT\./);
+      assert.deepEqual(tela.substituicoes, ["/"]);
+      assert.doesNotMatch(html, /role="alert"|Carregando evolução/);
       assert.equal(tela.chamadas.length, 0);
       assert.ok(!html.includes(VAZIO));
       semGrafico(html);
@@ -218,14 +227,11 @@ for (const token of [null, "", "   "]) {
   );
 }
 
-for (const status of [401, 403]) {
+for (const status of [403, 404, 500]) {
   test(
     "HTTP " + status + " exibe mensagem da API, sem gráfico ou histórico vazio",
     async () => {
-      const mensagem =
-        status === 401
-          ? "Token inválido ou expirado"
-          : "Acesso à evolução não autorizado";
+      const mensagem = "Mensagem específica do backend para HTTP " + status;
       const tela = pagina({
         responder: () =>
           Promise.reject({ response: { status, data: { mensagem } } }),
@@ -234,7 +240,9 @@ for (const status of [401, 403]) {
       assert.ok(html.includes('role="alert">' + mensagem));
       assert.ok(!html.includes(VAZIO));
       assert.doesNotMatch(html, /Carregando evolução/);
-      assert.equal(tela.errosConsole.length, 1);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
       semGrafico(html);
     },
   );
@@ -252,16 +260,28 @@ test("falha de comunicação usa mensagem padrão e encerra carregamento", async
   assert.ok(!html.includes(VAZIO));
   assert.doesNotMatch(html, /Carregando evolução/);
   semGrafico(html);
+  assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+  assert.ok(tela.armazenamento.has("usuario"));
+  assert.deepEqual(tela.substituicoes, []);
 });
 
-test("resposta HTTP de erro sem mensagem usa o texto padrão", async () => {
-  const tela = pagina({
-    responder: () => Promise.reject({ response: { status: 403, data: {} } }),
-  });
-  const html = await consultar(tela);
-  assert.match(html, /Não foi possível consultar a evolução diária\./);
-  semGrafico(html);
-});
+for (const status of [403, 404, 500])
+  test(
+    "HTTP " + status + " sem mensagem usa o texto padrão e preserva sessão",
+    async () => {
+      const tela = pagina({
+        responder: () => Promise.reject({ response: { status, data: {} } }),
+      });
+      const html = await consultar(tela);
+      assert.match(html, /Não foi possível consultar a evolução diária\./);
+      semGrafico(html);
+      assert.ok(!html.includes(VAZIO));
+      assert.doesNotMatch(html, /Carregando evolução/);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
+    },
+  );
 
 test("router não pronto não pede token, não consulta e não informa histórico vazio", async () => {
   const tela = pagina({ isReady: false });
@@ -299,7 +319,7 @@ test("troca de criança limpa série anterior durante carregamento e apresenta n
   assert.equal(tela.chamadas.at(-1).url, "/criancas/" + B + "/evolucao-diaria");
 });
 
-for (const falha of ["401", "403", "rede", "sem-jwt"]) {
+for (const falha of ["401", "403", "404", "500", "rede", "sem-jwt"]) {
   test(
     "falha " +
       falha +
@@ -321,14 +341,18 @@ for (const falha of ["401", "403", "rede", "sem-jwt"]) {
       tela.mudarCrianca(B);
       if (falha === "sem-jwt") tela.definirToken(null);
       const html = await consultar(tela);
-      assert.match(html, /role="alert"/);
+      if (["401", "sem-jwt"].includes(falha)) {
+        assert.deepEqual(tela.substituicoes, ["/"]);
+        assert.doesNotMatch(html, /role="alert"/);
+      } else assert.match(html, /role="alert"/);
+      assert.doesNotMatch(html, /Carregando evolução/);
       assert.ok(!html.includes(VAZIO));
       semGrafico(html);
     },
   );
 }
 
-for (const desfecho of ["sucesso", "erro", "vazio"]) {
+for (const desfecho of ["sucesso", "erro", "vazio", "401"]) {
   test(
     "resposta antiga com " +
       desfecho +
@@ -346,9 +370,12 @@ for (const desfecho of ["sucesso", "erro", "vazio"]) {
       await tela.resolverConsulta();
       tela.mudarCrianca(B);
       conferirDiaUnico(await consultar(tela), "02/11", 35);
-      if (desfecho === "erro")
+      if (["erro", "401"].includes(desfecho))
         antiga.reject({
-          response: { status: 403, data: { mensagem: "Erro antigo de A" } },
+          response: {
+            status: desfecho === "401" ? 401 : 403,
+            data: { mensagem: "Erro antigo de A" },
+          },
         });
       else
         antiga.resolve({
@@ -360,6 +387,9 @@ for (const desfecho of ["sucesso", "erro", "vazio"]) {
       assert.ok(!html.includes(VAZIO));
       assert.doesNotMatch(html, /Erro antigo de A/);
       assert.equal(tela.errosConsole.length, 0);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
     },
   );
 }
@@ -450,4 +480,228 @@ test("troca para criança sem histórico remove série anterior e mostra mensage
   const html = await consultar(tela);
   assert.ok(html.includes(VAZIO));
   semGrafico(html);
+});
+
+for (const dados of [{ mensagem: "Token expirado" }, {}]) {
+  test(
+    "401 limpa sessão e redireciona, " +
+      (dados.mensagem ? "com" : "sem") +
+      " mensagem backend",
+    async () => {
+      const tela = pagina({
+        responder: () =>
+          Promise.reject({ response: { status: 401, data: dados } }),
+      });
+      tela.localStorage.setItem("preferencia", "preservar");
+      const html = await consultar(tela);
+      assert.equal(tela.chamadas.length, 1);
+      assert.equal(tela.armazenamento.has("token"), false);
+      assert.equal(tela.armazenamento.has("usuario"), false);
+      assert.equal(tela.armazenamento.get("preferencia"), "preservar");
+      assert.deepEqual(
+        tela.operacoesStorage.filter((op) => op.metodo === "removeItem"),
+        [
+          { metodo: "removeItem", chave: "token" },
+          { metodo: "removeItem", chave: "usuario" },
+        ],
+      );
+      assert.deepEqual(tela.substituicoes, ["/"]);
+      assert.doesNotMatch(html, /role="alert"|Carregando evolução/);
+      assert.ok(!html.includes(VAZIO));
+      semGrafico(html);
+    },
+  );
+}
+
+test("ausência completa de sessão redireciona sem API ou histórico vazio", async () => {
+  const tela = pagina({ token: null, usuario: null });
+  const html = await consultar(tela);
+  assert.deepEqual(tela.substituicoes, ["/"]);
+  assert.equal(tela.chamadas.length, 0);
+  assert.ok(!html.includes(VAZIO));
+  semGrafico(html);
+});
+
+test("página delega Authorization ao interceptor sem config explícita", async () => {
+  const tela = pagina({ usarApiReal: false });
+  conferirDiaUnico(await consultar(tela));
+  assert.equal(tela.chamadas[0].config, undefined);
+});
+
+test("interceptor usa token atualizado no storage na consulta seguinte", async () => {
+  const tela = pagina();
+  await consultar(tela);
+  tela.definirToken("jwt-renovado-ficticio");
+  tela.mudarCrianca(B);
+  await consultar(tela);
+  assert.deepEqual(
+    tela.chamadas.map((c) => c.config.headers.Authorization),
+    ["Bearer jwt-ficticio", "Bearer jwt-renovado-ficticio"],
+  );
+  assert.equal(tela.chamadas[1].url, `/criancas/${B}/evolucao-diaria`);
+});
+
+for (const desfecho of ["sucesso", "vazio", "401"]) {
+  test(
+    "cleanup ignora " +
+      desfecho +
+      " atrasado sem atualizar consultaConcluida ou sessão",
+    async () => {
+      const pendente = promessaControlada();
+      const tela = pagina({ responder: () => pendente.promise });
+      tela.renderizar();
+      tela.executarEfeitos();
+      await tela.resolverConsulta();
+      tela.limparEfeitos();
+      const antes = tela.atualizacoesEstado.length;
+      if (desfecho === "401") pendente.reject({ response: { status: 401 } });
+      else
+        pendente.resolve({
+          data: desfecho === "vazio" ? resposta([]) : resposta(),
+        });
+      await tela.resolverConsulta();
+      assert.equal(tela.atualizacoesEstado.length, antes);
+      assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+      assert.ok(tela.armazenamento.has("usuario"));
+      assert.deepEqual(tela.substituicoes, []);
+      assert.equal(tela.prompts.length, 0);
+    },
+  );
+}
+
+for (const desfecho of ["sucesso", "vazio"]) {
+  test(
+    "resultado antigo " +
+      desfecho +
+      " após token ausente não conclui nova consulta",
+    async () => {
+      const antiga = promessaControlada();
+      const tela = pagina({ responder: () => antiga.promise });
+      tela.renderizar();
+      tela.executarEfeitos();
+      await tela.resolverConsulta();
+      tela.mudarCrianca(B);
+      tela.definirToken(null);
+      await consultar(tela);
+      antiga.resolve({
+        data: desfecho === "vazio" ? resposta([]) : resposta(),
+      });
+      await tela.resolverConsulta();
+      const html = tela.renderizar();
+      assert.deepEqual(tela.substituicoes, ["/"]);
+      assert.equal(tela.chamadas.length, 1);
+      assert.ok(!html.includes(VAZIO));
+      assert.doesNotMatch(html, /role="alert"|Carregando evolução/);
+      semGrafico(html);
+    },
+  );
+}
+
+test("nova consulta limpa erro anterior e só mostra vazio após sucesso confirmado", async () => {
+  const nova = promessaControlada();
+  const tela = pagina({
+    responder: (url) => {
+      if (url.includes(A))
+        throw {
+          response: { status: 500, data: { mensagem: "Erro anterior" } },
+        };
+      return nova.promise;
+    },
+  });
+  assert.match(await consultar(tela), /Erro anterior/);
+  tela.mudarCrianca(B);
+  tela.renderizar();
+  tela.executarEfeitos();
+  const aguardando = tela.renderizar();
+  assert.match(aguardando, /Carregando evolução/);
+  assert.doesNotMatch(aguardando, /Erro anterior|role="alert"/);
+  assert.ok(!aguardando.includes(VAZIO));
+  nova.resolve({ data: resposta([]) });
+  await tela.resolverConsulta();
+  const html = tela.renderizar();
+  assert.ok(html.includes(VAZIO));
+  assert.doesNotMatch(html, /Erro anterior|role="alert"|Carregando evolução/);
+  semGrafico(html);
+});
+
+test("vazio antigo não conclui a consulta atual ainda pendente", async () => {
+  const antiga = promessaControlada();
+  const atual = promessaControlada();
+  const tela = pagina({
+    responder: (url) => (url.includes(A) ? antiga.promise : atual.promise),
+  });
+  tela.renderizar();
+  tela.executarEfeitos();
+  await tela.resolverConsulta();
+  tela.mudarCrianca(B);
+  tela.renderizar();
+  tela.executarEfeitos();
+  await tela.resolverConsulta();
+  antiga.resolve({ data: resposta([]) });
+  await tela.resolverConsulta();
+  const aguardando = tela.renderizar();
+  assert.match(aguardando, /Carregando evolução/);
+  assert.ok(!aguardando.includes(VAZIO));
+  semGrafico(aguardando);
+  atual.resolve({ data: resposta() });
+  await tela.resolverConsulta();
+  conferirDiaUnico(tela.renderizar());
+});
+
+test("preserva SVG, grade, linha, pontos, legenda, classes e Usuario._id na navegação", async () => {
+  const dados = resposta();
+  dados.criancaId = "0000000000000000000000c1";
+  const tela = pagina({ dados });
+  const html = await consultar(tela);
+  assert.equal(tela.chamadas[0].url, `/criancas/${A}/evolucao-diaria`);
+  assert.match(html, /<main class="pagina">/);
+  assert.match(html, /<section class="painel">/);
+  assert.match(html, /<p class="descricao">/);
+  assert.match(
+    html,
+    /<div class="grafico"><svg class="svg" viewBox="0 0 600 250"/,
+  );
+  assert.equal([...html.matchAll(/<line\b[^>]*class="grade"/g)].length, 5);
+  assert.match(html, /<path d="M 300 85\.4" class="linha"/);
+  assert.match(html, /<circle cx="300" cy="85\.4" r="5" class="ponto"/);
+  assert.match(
+    html,
+    /<p class="legenda">\s*Percentual diário de acertos \(%\)<\/p>/,
+  );
+  assert.match(
+    html,
+    /src="\/images\/logo.png" alt="Logo ConectaMente" class="logo"/,
+  );
+  assert.match(
+    html,
+    /src="\/images\/majesticons_share.png" alt="" class="iconeVoltar"/,
+  );
+  function elementos(no) {
+    if (Array.isArray(no)) return no.flatMap(elementos);
+    if (!no?.props) return [];
+    return [no, ...elementos(no.props.children)];
+  }
+  const nos = elementos(tela.arvore);
+  const voltar = nos.find(
+    (no) => no.props["aria-label"] === "Voltar para rendimento",
+  );
+  assert.equal(voltar.props.className, "voltar");
+  assert.equal(voltar.props.href.pathname, "/responsavel/rendimento");
+  assert.equal(voltar.props.href.query.id, A);
+  assert.ok(
+    nos.some(
+      (no) =>
+        no.type === "title" &&
+        no.props.children === "Evolução do progresso | ConectaMente",
+    ),
+  );
+  assert.ok(
+    nos.some(
+      (no) =>
+        no.type === "meta" &&
+        no.props.name === "description" &&
+        no.props.content === "Acompanhe a evolução do progresso da criança.",
+    ),
+  );
+  conferirDiaUnico(html);
 });

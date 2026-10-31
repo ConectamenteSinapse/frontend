@@ -1,120 +1,113 @@
-# Percentual de Acertos — testes automatizados
+﻿# Percentual de Acertos — testes da integração JWT
 
-Validação em **30/10/2026**, Node.js 24.22.1. Componente real examinado:
-`src/pages/responsavel/rendimento/percentual/index.js`.
+Validação em **31/10/2026**, Node.js **24.22.1**.
+Componente: `src/pages/responsavel/rendimento/percentual/index.js`.
 
-Consultados CONTEXTO_DESENVOLVIMENTO.md, ANALISE_ARQUITETURA_FRONTEND.md,
-ANALISE_ARQUITETURA_BACKEND.md, componente, CSS, package.json e infraestrutura
-existente em tests/. O código local atualizado prevalece sobre os diagnósticos
-históricos de gráfico fixo ou cálculo a partir de acertos e tentativas.
+## Análise realizada
+
+Consultados `CONTEXTO_DESENVOLVIMENTO.md`, `ANALISE_ARQUITETURA_FRONTEND.md`,
+página atual, `src/services/api.js`, CSS, package.json e testes/helpers existentes.
+As descrições documentais de JWT por prompt e gráfico demonstrativo são históricas;
+o componente atual lê localStorage e api.js já possui interceptor de autenticação.
+Preservado o contrato de Usuario._id nas consultas gerais e navegação.
 
 ## Resultados executados
 
-| Execução                             | Aprovados | Reprovados | Ignorados |
-| ------------------------------------ | --------: | ---------: | --------: |
-| Específicos de Percentual de Acertos |        30 |          0 |         0 |
-| Relatório Final na execução conjunta |        27 |          0 |         0 |
-| Total da execução conjunta           |        57 |          0 |         0 |
+| Execução | Aprovados | Reprovados | Ignorados |
+| --- | ---: | ---: | ---: |
+| Percentual isolado | 46 | 0 | 0 |
+| Regressão conjunta: Percentual, Resumo, Relatório, Evolução, Contas, Painel e Detalhes | 309 | 0 | 0 |
+| Autenticação filtrada: login e sessão do responsável | 11 | 0 | 0 |
+| Total sem repetir os 46 específicos incluídos na regressão | **320** | **0** | **0** |
 
-Não houve cancelamentos ou TODOs. Os comandos retornaram 0. A primeira
-execução específica teve 30 aprovações; a execução conjunta após formatação
-repetiu esses 30, sem somá-los novamente. Os 27 testes anteriores foram
-executados com suas expectativas intactas; a falha histórica do relatório
-não reapareceu no código atual, já corrigido pelo desenvolvedor antes desta
-rodada. O relatório histórico anterior foi preservado.
+Todos os comandos finais retornaram 0. Sem cancelamentos ou TODOs.
+Sintaxe, ESLint e formatação do teste específico passaram.
+Cadastro e Adicionar Conta foram excluídos dos comandos; não são aprovações
+nem testes marcados como skipped. O filtro de autenticação seleciona apenas
+login/sessão, evitando inclusive cenários de cadastro com títulos genéricos.
 
-Nenhum defeito funcional foi reproduzido nos cenários desta suíte. Os resultados
-são unitários e não homologam o navegador ou a API real.
+A rodada inicial teve 21 aprovações e 9 falhas em 30 testes. As causas eram
+expectativas do fluxo anterior: JWT/header explícito, alerta na ausência de
+token ou 401 e exigência de console.error. Foram atualizadas conforme os
+requisitos desta tarefa, mantendo os testes de cálculo e gráfico existentes.
 
-## Cobertura
+**Nenhum defeito funcional de Percentual foi reproduzido nos cenários finais.**
 
-- Uma única chamada GET /criancas/:usuarioId/resumo-desempenho e Bearer com token
-  sem espaços; não utiliza o antigo endpoint de progresso nem busca outras rotas.
-- Percentuais 0%, 72%, 66,67% (número 66.67 na API) e 100% no centro do gráfico,
-  legendas, descrição acessível e limites do conic-gradient.
-- Uso direto de resumo.percentualAcertos: uma fixture deliberadamente divergente
-  dos contadores comprova que não há recálculo; outra faz os getters de acertos
-  e erros falharem caso sejam lidos, e o componente continua passando.
-- Complemento para respostas incorretas e diferença entre 0% com tentativas e
-  ausência de histórico: sem tentativas aparece mensagem específica e nenhum
-  gráfico de 100% de erros.
-- Texto RENDIMENTO DA CONTA / Percentual de acerto, descrição de acertos,
-  legendas de corretas/incorretas, classes azul/laranja, cores do gradiente
-  e role=img com aria-label.
-- Ausência de percentual demonstrativo no estado inicial.
-- JWT cancelado, vazio e apenas espaços, sem chamada HTTP.
-- HTTP 401/403 com mensagem da API, fallback sem mensagem e falha de rede.
-- Carregamento pendente e encerramento do carregamento em sucesso ou erro.
-- Router não pronto e ID ausente não iniciam consulta nem pedem token.
-- Troca de criança limpa os dados durante a consulta e apresenta o novo resultado.
-- Nova consulta com 401, 403, rede ou JWT ausente não mantém gráfico antigo.
-- Sucesso atrasado e erro atrasado de A não sobrescrevem o sucesso de B.
-- Finally da consulta antiga não encerra o carregamento de B.
-- Sucesso atrasado de A não remove o erro atual de B.
-- Troca para criança sem histórico remove o gráfico anterior.
+## Cenários cobertos
 
-As corridas são controladas por promessas, sem sleeps arbitrários ou rede real.
-O helper executa o cleanup do efeito ao mudar as dependências, ativando a
-proteção consultaAtiva presente em produção. Os cálculos, mensagens, guardas,
-callbacks e JSX executados são do componente real.
+- Ausência de window.prompt() no fluxo de consulta.
+- Leitura do token do localStorage compartilhado pelo componente e interceptor.
+- Authorization: Bearer pelo interceptor Axios real; página sem config explícita.
+- Token alterado no storage é utilizado na consulta seguinte.
+- Token ausente, vazio ou de espaços: sem GET e redirecionamento ao login `/`.
+- Ausência completa de token e usuario: redirecionamento sem consulta.
+- HTTP 401 com ou sem mensagem: remove token e usuario, preserva outras chaves,
+  oculta gráfico, encerra carregamento e redireciona.
+- HTTP 403, 404 e 500: mensagem backend quando presente, fallback quando ausente,
+  sessão preservada e sem redirecionamento.
+- Falha de rede: fallback, carregamento encerrado e sessão preservada.
+- Acertos e erros: 0/100, 72/28, 66.67/33.33 e 100/0 no centro, legenda,
+  descrição acessível e conic-gradient.
+- Uso de resumo.percentualAcertos sem recálculo por contadores de acertos/erros.
+- Nenhuma tentativa: mensagem específica, sem gráfico de 100% de erros.
+- Usuario._id na consulta e link de retorno, distinto do Crianca._id da resposta.
+- Router não pronto ou sem ID: nenhuma consulta/prompt.
+- Carregamento pendente, limpeza de dados anteriores e erro anterior.
+- Sucesso/erro/401 antigo não substitui dados atuais nem apaga sessão atual.
+- Finally antigo não encerra carregamento atual em sucesso ou erro.
+- Resposta antiga após falta de token e cleanup na desmontagem são ignorados.
+- Estrutura do gráfico, centro, legenda, classes CSS, cores, títulos, imagens,
+  metadados e link de retorno preservados.
 
-## Observação de apresentação
+O percentual fracionário permanece apresentado com ponto (66.67%), conforme
+implementação atual. Localização para vírgula não foi exigida como novo contrato.
 
-O valor numérico 66.67 é exibido literalmente como **66.67%**, inclusive na
-legenda e descrição acessível. A formatação brasileira **66,67%** não está
-implementada. Foi validado o valor fracionário e o uso direto da API; a vírgula
-não foi imposta como requisito adicional nem tratada como defeito funcional
-sem contrato explícito de localização. Se essa apresentação for exigida, a
-correção mínima é formatar somente os textos para pt-BR, mantendo o número
-da API e o valor numérico do gradiente. Nada foi alterado em produção.
+## Testes simulados e HTTP real
 
-## Infraestrutura e limites
+**Percentual (46 testes):** componente, efeito/cleanup e interceptor de api.js
+reais, com infraestrutura existente de node:test/assert, Babel do Next, VM e
+renderToStaticMarkup. Hooks, router, storage e CSS Modules são controlados.
+A opção usarApiReal do helper existente foi reutilizada sem modificá-lo.
+O adapter Axios retorna respostas/rejeições simuladas; não abre conexão HTTP.
+Um teste usa API inteiramente simulada para confirmar ausência de headers
+explícitos no componente. Esses testes não validam JWT no servidor.
 
-Reutilizados node:test/assert, compilador JSX já incluído no Next, VM isolada
-e renderToStaticMarkup do React. O helper existente relatorio.cjs recebeu
-somente um parâmetro opcional de página, preservando o padrão relatorio, e o
-mock do CSS correspondente. Apenas relatorio e percentual são aceitos.
-Os testes antigos não foram modificados.
+**Regressão com HTTP local real (2 testes incluídos nos totais):**
 
-API, router, prompt, Head/Link, CSS Modules e hooks são controlados. A instância
-Axios real não é carregada e imports não previstos são rejeitados. Não há
-instalação, alteração de package.json/lockfile ou configuração.
+- Contas: página e interceptor Axios reais, servidor node:http em loopback
+  com resposta fixa; confirma Authorization recebido pelo servidor.
+- Login: formulário e Axios reais, Express/Router/Controller/Service e bcrypt/JWT;
+  Models simulados, sem MongoDB. Confirma criação e reutilização da sessão.
 
-O HTML gerado confirma estrutura, textos, atributos e estilo inline; não confirma
-pixels, geometria pintada pelo navegador, CSS aplicado, responsividade, foco,
-eventos reais, hidratação, batching/StrictMode, Next Router real, CORS ou JWT
-validado pelo backend. Não houve execução DOM/ponta a ponta. A renderização
-controlada verifica o estado após os efeitos; não certifica ausência de um
-frame anterior entre renderização de nova URL e execução do efeito no navegador.
+As demais verificações usam respostas controladas. Não houve acesso a API
+externa, MongoDB ou dados reais. HTTP local não equivale a E2E de navegador.
+A estrutura visual é verificada em JSX/HTML/atributos/classes, sem comparação
+de pixels, CSS aplicado, responsividade, DOM, navegação Next real, hidratação,
+StrictMode real ou CORS. Os estados são observados após execução dos efeitos.
 
-As regras da #107 foram preservadas: esta é uma consulta geral por criança,
-com indicadores calculados no backend, sem nova exigência de sessão de jogo
-para o responsável nem tentativa de derivar desbloqueios por partida.
+## Arquivos alterados nesta tarefa
 
-## Arquivos
+- `tests/percentual.test.cjs`: expectativas JWT atualizadas e 46 cenários.
+- `tests/percentual.relatorio.md`: resultados, cobertura e limites atualizados.
 
-- Criado: tests/percentual.test.cjs.
-- Criado: tests/percentual.relatorio.md.
-- Ajustado: tests/helpers/relatorio.cjs para reutilização nas duas páginas.
+Helper, outras suítes e alterações pré-existentes foram preservados.
+Sem alterações de produção, backend, MongoDB ou cadastro. Sem instalação,
+commit, push ou merge.
 
-## Comandos executados
+## Comandos de reprodução
 
 A partir de frontend:
 
 ```powershell
-node --test --test-concurrency=1 --test-reporter=tap tests/percentual.test.cjs
-node --test --test-concurrency=1 --test-reporter=spec tests/percentual.test.cjs tests/relatorio.test.cjs
-node node_modules/eslint/bin/eslint.js tests/percentual.test.cjs tests/helpers/relatorio.cjs
+node --test --test-concurrency=1 --test-reporter=spec tests/percentual.test.cjs
+node --test --test-concurrency=1 --test-reporter=spec tests/percentual.test.cjs tests/resumo.test.cjs tests/relatorio.test.cjs tests/evolucao.test.cjs tests/contas.test.cjs tests/painelResponsavel.test.cjs tests/detalhes.test.cjs
+node --test --test-concurrency=1 --test-reporter=spec --test-name-pattern='^(login|Login:|caracterização: handler de login|perfil de login|integração HTTP real: Login|responsável:)' tests/autenticacao.auditoria.test.cjs
+node node_modules/eslint/bin/eslint.js tests/percentual.test.cjs
+node --check tests/percentual.test.cjs
 ```
 
-A partir da raiz do workspace:
+Formatação com a instalação existente, a partir da raiz:
 
 ```powershell
-node --check frontend/tests/percentual.test.cjs
-node --check frontend/tests/helpers/relatorio.cjs
-node backend/node_modules/prettier/bin/prettier.cjs --write frontend/tests/percentual.test.cjs frontend/tests/helpers/relatorio.cjs
+node backend/node_modules/prettier/bin/prettier.cjs --write frontend/tests/percentual.test.cjs
 ```
-
-Sintaxe e ESLint passaram. Prettier utilizou somente a instalação existente,
-sem formatar produção. Backend, banco, documentos de contexto e dependências
-não foram modificados. Não houve commit ou push.

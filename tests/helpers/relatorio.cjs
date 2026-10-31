@@ -20,15 +20,16 @@ function compilarPagina(pagina) {
       "contas",
       "adicionar-conta",
       "detalhes",
+      "responsavel",
     ].includes(pagina),
     "Página não autorizada no helper",
   );
   const arquivo = path.resolve(
     __dirname,
-    ["contas", "adicionar-conta", "detalhes"].includes(pagina)
+    ["contas", "adicionar-conta", "detalhes", "responsavel"].includes(pagina)
       ? "../../src/pages/responsavel"
       : "../../src/pages/responsavel/rendimento",
-    pagina,
+    pagina === "responsavel" ? "" : pagina,
     "index.js",
   );
   const { code } = babel.transformSync(readFileSync(arquivo, "utf8"), {
@@ -59,15 +60,24 @@ function montarRelatorio({
   id,
   isReady = true,
   token = "jwt-ficticio",
+  usuario = JSON.stringify({ id: "responsavel-ficticio", perfil: "responsavel" }),
   responder,
+  usarApiReal = false,
 }) {
   // Parâmetro opcional mantém compatibilidade com os testes do relatório.
   const { arquivo, code } = compilarPagina(pagina);
   const navegacoes = [];
+  const substituicoes = [];
+  const navegacoesJanela = [];
   const router = {
     isReady,
     query: { id },
     push(destino) {
+      navegacoes.push(destino);
+      return Promise.resolve(true);
+    },
+    replace(destino) {
+      substituicoes.push(destino);
       navegacoes.push(destino);
       return Promise.resolve(true);
     },
@@ -89,7 +99,25 @@ function montarRelatorio({
   let indiceReferencia = 0;
   let indiceEfeito = 0;
   let tokenAtual = token;
-  const api = {
+  const armazenamento = new Map();
+  if (token !== null && token !== undefined) armazenamento.set("token", String(token));
+  if (usuario !== null && usuario !== undefined) armazenamento.set("usuario", String(usuario));
+  const operacoesStorage = [];
+  const localStorage = {
+    getItem(chave) {
+      operacoesStorage.push({ metodo: "getItem", chave });
+      return armazenamento.get(chave) ?? null;
+    },
+    setItem(chave, valor) {
+      operacoesStorage.push({ metodo: "setItem", chave });
+      armazenamento.set(chave, String(valor));
+    },
+    removeItem(chave) {
+      operacoesStorage.push({ metodo: "removeItem", chave });
+      armazenamento.delete(chave);
+    },
+  };
+  let api = {
     get(url, config) {
       chamadas.push({ url, config });
       return Promise.resolve().then(() => responder(url, config));
@@ -107,6 +135,28 @@ function montarRelatorio({
       return Promise.resolve().then(() => responder(url, config));
     },
   };
+  if (usarApiReal) {
+    // Executa api.js e o interceptor reais; somente o transporte é substituído.
+    // O storage é compartilhado com o componente e nenhuma conexão é aberta.
+    const arquivoApi = path.resolve(__dirname, "../../src/services/api.js");
+    const codigoApi = babel.transformSync(readFileSync(arquivoApi, "utf8"), {
+      filename: arquivoApi,
+      babelrc: false,
+      configFile: false,
+      plugins: [commonjs],
+    }).code;
+    const contextoApi = {
+      exports: {}, require, localStorage, window: { localStorage },
+      process: { env: { NEXT_PUBLIC_API_URL: "http://api.example.invalid" } },
+    };
+    vm.runInNewContext(codigoApi, contextoApi, { filename: arquivoApi });
+    api = contextoApi.exports.default;
+    api.defaults.adapter = async (config) => {
+      chamadas.push({ url: config.url, config });
+      const resposta = await responder(config.url, config);
+      return { status: 200, statusText: "OK", headers: {}, ...resposta, config };
+    };
+  }
   const hooks = {
     useRef(inicial) {
       const indice = indiceReferencia++;
@@ -157,6 +207,7 @@ function montarRelatorio({
       contas: "Contas",
       "adicionar-conta": "AdcionarConta",
       detalhes: "Detalhes",
+      responsavel: "PerfilResponsavel",
     }[pagina] +
     ".module.css"]: {
       __esModule: true,
@@ -165,6 +216,7 @@ function montarRelatorio({
   };
   const contexto = {
     exports: {},
+    localStorage,
     alert(mensagem) {
       alertas.push(mensagem);
     },
@@ -173,6 +225,17 @@ function montarRelatorio({
       return modules[nome];
     },
     window: {
+      localStorage,
+      location: {
+        get href() { return navegacoesJanela.at(-1)?.destino ?? ""; },
+        set href(destino) {
+          navegacoesJanela.push({
+            destino,
+            tokenPresente: armazenamento.has("token"),
+            usuarioPresente: armazenamento.has("usuario"),
+          });
+        },
+      },
       prompt(mensagem) {
         prompts.push(mensagem);
         return tokenAtual;
@@ -196,6 +259,11 @@ function montarRelatorio({
     logsConsole,
     alertas,
     navegacoes,
+    substituicoes,
+    navegacoesJanela,
+    armazenamento,
+    localStorage,
+    operacoesStorage,
     atualizacoesEstado,
     get arvore() {
       return arvore;
@@ -206,6 +274,20 @@ function montarRelatorio({
       indiceEfeito = 0;
       arvore = Componente();
       return renderToStaticMarkup(arvore);
+    },
+    renderizarServidor() {
+      // SSR com hooks e renderizador React reais. Sem window/localStorage;
+      // useEffect não é executado pelo renderizador de servidor.
+      const contextoServidor = {
+        exports: {},
+        require(nome) {
+          if (nome === "react") return React;
+          assert.ok(Object.hasOwn(modules, nome), "Import SSR não simulado: " + nome);
+          return modules[nome];
+        },
+      };
+      vm.runInNewContext(code, contextoServidor, { filename: arquivo });
+      return renderToStaticMarkup(React.createElement(contextoServidor.exports.default));
     },
     executarEfeitos() {
       for (const { indice, callback } of efeitos.splice(0)) {
@@ -236,6 +318,8 @@ function montarRelatorio({
     },
     definirToken(novoToken) {
       tokenAtual = novoToken;
+      if (novoToken === null || novoToken === undefined) armazenamento.delete("token");
+      else armazenamento.set("token", String(novoToken));
     },
   };
 }
