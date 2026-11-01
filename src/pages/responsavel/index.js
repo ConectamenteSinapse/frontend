@@ -1,9 +1,27 @@
 
 import Head from "next/head";
 import styles from "./PerfilResponsavel.module.css";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 
 export default function PerfilResponsavel() {
-  return (
+const router = useRouter();
+const [verificandoSessao, setVerificandoSessao] = useState(true);
+useEffect(() => {
+  const token = localStorage.getItem("token");
+
+  if (!token?.trim()) {
+    router.replace("/");
+    return;
+  }
+
+  setVerificandoSessao(false);
+}, [router]);
+
+if (verificandoSessao) {
+  return null;
+}
+return (
     <>
       <Head>
         <title>Perfil do Responsável | ConectaMente</title>
@@ -44,7 +62,9 @@ export default function PerfilResponsavel() {
             type="button"
             className={styles.sairButton}
             onClick={() => {
-              window.location.href = "/"; // Alterar quando a rota de cadastro for definida
+              localStorage.removeItem("token");
+              localStorage.removeItem("usuario");
+              window.location.href = "/";
             }}
           >
             SAIR DA CONTA

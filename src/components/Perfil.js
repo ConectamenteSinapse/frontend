@@ -1,4 +1,4 @@
-import React from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import {
   Pencil,
@@ -7,58 +7,164 @@ import {
   CheckCircle2,
   Clock,
   Circle,
-  Shirt,
   Gamepad2,
   LogOut,
   ChevronRight,
   Check,
 } from "lucide-react";
+
+import api from "../services/api";
 import styles from "../styles/Perfil.module.css";
 
 export default function Perfil({ nomeUtilizador = "Lorenzo" }) {
   const router = useRouter();
 
-  const comodos = [
-    {
-      id: "quarto",
-      nome: "Quarto",
-      status: "Concluído",
-      tipoStatus: "concluido",
-      imagem: "/images/quarto.png",
-    },
-    {
-      id: "banheiro",
-      nome: "Banheiro",
-      status: "Concluído",
-      tipoStatus: "concluido",
-      imagem: "/images/banheiro.png",
-    },
-    {
-      id: "sala",
-      nome: "Sala",
-      status: "Concluído",
-      tipoStatus: "concluido",
-      imagem: "/images/sala.png",
-    },
-    {
-      id: "cozinha",
-      nome: "Cozinha",
-      status: "Em andamento",
-      tipoStatus: "andamento",
-      imagem: "/images/cozinha.png",
-    },
-    {
-      id: "extras",
-      nome: "Extras",
-      status: "Não iniciado",
-      tipoStatus: "nao_iniciado",
-      imagem: "/images/extras.png",
-    },
-  ];
+  const [dadosCrianca, setDadosCrianca] = useState(null);
+  const [dadosUsuario, setDadosUsuario] = useState(null);
+  const [resumoDesempenho, setResumoDesempenho] = useState(null);
+  const [comodos, setComodos] = useState([]);
+  const [tarefasConcluidasPorComodo, setTarefasConcluidasPorComodo] =
+    useState({});
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    async function carregarPerfil() {
+      try {
+        const respostaCrianca = await api.get("/criancas/meu-perfil");
+        const crianca = respostaCrianca.data;
+
+        setDadosCrianca(crianca);
+
+        const usuarioId = crianca.usuarioId;
+
+        const [respostaResumo, respostaUsuario, respostaComodos] =
+          await Promise.all([
+            api.get(`/criancas/${usuarioId}/resumo-desempenho`),
+            api.get("/usuarios/meu-perfil"),
+            api.get("/comodos"),
+          ]);
+
+        setResumoDesempenho(respostaResumo.data.resumo);
+        setDadosUsuario(respostaUsuario.data);
+
+        // Ordenar os cômodos pela ordem cadastrada no banco.
+        
+        const dadosComodos = respostaComodos.data;
+
+        const listaRecebida = Array.isArray(dadosComodos)
+          ? dadosComodos
+          : Array.isArray(dadosComodos.comodos)
+            ? dadosComodos.comodos
+            : [];
+
+        const listaComodos = listaRecebida
+          .filter((comodo) => comodo.ativo !== false)
+          .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+
+        console.log("Cômodos recebidos da API:", dadosComodos);
+        console.log("Cômodos exibidos no perfil:", listaComodos);
+
+        setComodos(listaComodos);
+
+
+        // Buscar as tarefas e identificar as que foram acertadas.
+        const tarefasPorComodo = {};
+
+        await Promise.all(
+          listaComodos.map(async (comodo) => {
+            try {
+              const respostaTarefas = await api.get(
+                `/comodos/${comodo._id}/tarefas`
+              );
+
+              
+        const dadosTarefas = respostaTarefas.data;
+
+        const listaTarefas = Array.isArray(dadosTarefas)
+          ? dadosTarefas
+          : Array.isArray(dadosTarefas.tarefas)
+            ? dadosTarefas.tarefas
+            : [];
+
+        const tarefas = listaTarefas.filter(
+          (tarefa) => tarefa.ativo !== false
+        );
+
+
+              const idsTarefas = tarefas.map((tarefa) =>
+                String(tarefa._id)
+              );
+
+              const tarefasAcertadas = respostaResumo.data.desempenhoPorComodo
+                ?.find(
+                  (item) =>
+                    String(item.comodoId) === String(comodo._id)
+                )
+                ?.tarefasConcluidas;
+
+              tarefasPorComodo[comodo._id] = {
+                total: idsTarefas.length,
+                concluidas: tarefasAcertadas ?? 0,
+              };
+            } catch (error) {
+              console.error(
+                `Erro ao carregar tarefas do cômodo ${comodo.nome}:`,
+                error
+              );
+
+              tarefasPorComodo[comodo._id] = {
+                total: 0,
+                concluidas: 0,
+              };
+            }
+          })
+        );
+
+        setTarefasConcluidasPorComodo(tarefasPorComodo);
+      } catch (error) {
+        console.error("Erro ao carregar perfil:", error);
+
+        setErro(
+          error.response?.data?.mensagem ||
+            "Não foi possível carregar o perfil da criança."
+        );
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregarPerfil();
+  }, []);
+
+  const nomeExibido = dadosUsuario?.nome || nomeUtilizador;
+
+  const totalEstrelas = resumoDesempenho?.totalEstrelas ?? 0;
+
+  const totalComodos = comodos.length;
+
+  const comodosConcluidos = comodos.filter((comodo) => {
+    const progresso = tarefasConcluidasPorComodo[comodo._id];
+
+    return (
+      progresso &&
+      progresso.total > 0 &&
+      progresso.concluidas >= progresso.total
+    );
+  }).length;
+
+  if (carregando) {
+    return <p>Carregando perfil...</p>;
+  }
 
   return (
     <main className={styles.pagina}>
-      {/* Topo: seta à esquerda, título no centro, logo à direita */}
+      {erro && (
+        <p role="alert" style={{ color: "red" }}>
+          {erro}
+        </p>
+      )}
+
       <header className={styles.cabecalhoTopo}>
         <button
           type="button"
@@ -67,7 +173,7 @@ export default function Perfil({ nomeUtilizador = "Lorenzo" }) {
           aria-label="Voltar"
         >
           <img
-            src="/images/seta.png"
+            src="/images/majesticons_share.png"
             alt=""
             className={styles.iconeVoltar}
           />
@@ -84,27 +190,26 @@ export default function Perfil({ nomeUtilizador = "Lorenzo" }) {
         </div>
       </header>
 
-      {/* Painel Branco Principal */}
       <div className={styles.painelPrincipal}>
-        {/* COLUNA ESQUERDA */}
         <div className={styles.colunaEsquerda}>
-          {/* Card do Utilizador */}
           <div className={styles.cardUsuario}>
             <div className={styles.avatarMiniContainer}>
               <img
                 src="/images/avatar.png"
-                alt={`Avatar ${nomeUtilizador}`}
+                alt={`Avatar ${nomeExibido}`}
                 className={styles.avatarMini}
               />
             </div>
 
             <div className={styles.infoUsuario}>
-              <h2 className={styles.nomeUsuario}>{nomeUtilizador}</h2>
+              <h2 className={styles.nomeUsuario}>{nomeExibido}</h2>
+
               <div className={styles.linhaBadges}>
                 <span className={styles.badgeNivel}>Nível 12</span>
+
                 <div className={styles.badgeEstrelas}>
                   <Star size={16} color="#ffb703" fill="#ffb703" />
-                  <span>78 estrelas</span>
+                  <span>{totalEstrelas} estrelas</span>
                 </div>
               </div>
             </div>
@@ -115,24 +220,31 @@ export default function Perfil({ nomeUtilizador = "Lorenzo" }) {
             </button>
           </div>
 
-          {/* Card Suas Estrelas */}
           <div className={styles.cardEstrelas}>
             <div className={styles.cabecalhoEstrelas}>
               <div className={styles.tituloEstrelas}>
                 <Star size={28} color="#ffb703" fill="#ffb703" />
                 <h3>Suas Estrelas</h3>
               </div>
-              <span className={styles.fracaoEstrelas}>78 de 100</span>
+
+              <span className={styles.fracaoEstrelas}>
+                {totalEstrelas} estrelas
+              </span>
             </div>
 
             <div className={styles.containerBarraEstrelas}>
               <div className={styles.barraEstrelasFundo}>
                 <div
                   className={styles.barraEstrelasPreenchimento}
-                  style={{ width: "78%" }}
+                  style={{
+                    width: `${Math.min(totalEstrelas, 100)}%`,
+                  }}
                 />
               </div>
-              <span className={styles.porcentagemTexto}>78%</span>
+
+              <span className={styles.porcentagemTexto}>
+                {Math.min(totalEstrelas, 100)}%
+              </span>
             </div>
 
             <p className={styles.subtextoRecompensa}>
@@ -140,62 +252,121 @@ export default function Perfil({ nomeUtilizador = "Lorenzo" }) {
             </p>
           </div>
 
-          {/* Card Cômodos Concluídos */}
+          <div className={styles.cartaoTempo}>
+            <div className={styles.tituloTempo}>
+              <h2>Tempo de Uso</h2>
+            </div>
+
+            <p className={styles.tempoUtilizado}>
+              {dadosCrianca?.tempoUsadoHoje ?? 0} min utilizados
+            </p>
+
+            <p className={styles.limiteTempo}>
+              Limite diário:{" "}
+              {dadosCrianca?.limiteTempoDiario != null
+                ? `${dadosCrianca.limiteTempoDiario} min`
+                : "Não definido"}
+            </p>
+          </div>
+
           <div className={styles.cardComodos}>
             <div className={styles.cabecalhoComodos}>
               <div className={styles.tituloComodos}>
                 <Home size={26} color="#0052cc" fill="#0052cc" />
                 <h3>Cômodos Concluídos</h3>
               </div>
+
               <span className={styles.statusComodosTexto}>
-                3 de 5 concluídos
+                {comodosConcluidos} de {totalComodos} concluídos
               </span>
             </div>
 
             <div className={styles.gridComodos}>
-              {comodos.map(({ id, nome, status, tipoStatus, imagem }) => (
-                <div
-                  key={id}
-                  className={`${styles.itemComodo} ${styles[tipoStatus]}`}
-                >
-                  <div className={styles.imagemComodoContainer}>
-                    <img
-                      src={imagem}
-                      alt={nome}
-                      className={styles.imgComodo}
-                    />
-                  </div>
-                  <span className={styles.nomeComodo}>{nome}</span>
+              {comodos.map((comodo) => {
+                const progresso =
+                  tarefasConcluidasPorComodo[comodo._id];
 
-                  <div className={styles.statusBadge}>
-                    {tipoStatus === "concluido" && (
-                      <>
-                        <CheckCircle2 size={14} color="#2e7d32" />
-                        <span>{status}</span>
-                      </>
-                    )}
-                    {tipoStatus === "andamento" && (
-                      <>
-                        <Clock size={14} color="#ed6c02" />
-                        <span>{status}</span>
-                      </>
-                    )}
-                    {tipoStatus === "nao_iniciado" && (
-                      <>
-                        <Circle size={14} color="#757575" />
-                        <span>{status}</span>
-                      </>
-                    )}
+                const totalTarefas = progresso?.total ?? 0;
+                const concluidas = progresso?.concluidas ?? 0;
+
+                const concluido =
+                  totalTarefas > 0 && concluidas >= totalTarefas;
+
+                const emAndamento = concluidas > 0 && !concluido;
+
+                const status = concluido
+                  ? "Concluído"
+                  : emAndamento
+                    ? "Em andamento"
+                    : "Não iniciado";
+
+                const tipoStatus = concluido
+                  ? "concluido"
+                  : emAndamento
+                    ? "andamento"
+                    : "nao_iniciado";
+
+                // Mantém as imagens temporárias que já estavam no perfil.
+                const imagensTemporarias = [
+                  "/images/fundo.png",
+                  "/images/fundo2.png",
+                  "/images/fundo3.png",
+                  "/images/menina1.png",
+                  "/images/menina2.png",
+                ];
+
+                const imagem =
+                  comodo.imagemCenario ||
+                  imagensTemporarias[comodo.ordem - 1] ||
+                  "/images/fundo.png";
+
+                return (
+                  <div
+                    key={comodo._id}
+                    className={`${styles.itemComodo} ${styles[tipoStatus]}`}
+                  >
+                    <div className={styles.imagemComodoContainer}>
+                      <img
+                        src={imagem.startsWith("/") ? imagem : `/${imagem}`}
+                        alt={comodo.nome}
+                        className={styles.imgComodo}
+                      />
+                    </div>
+
+                    <span className={styles.nomeComodo}>
+                      {comodo.nome}
+                    </span>
+
+                    <div className={styles.statusBadge}>
+                      {concluido && (
+                        <>
+                          <CheckCircle2 size={14} color="#2e7d32" />
+                          <span>{status}</span>
+                        </>
+                      )}
+
+                      {emAndamento && (
+                        <>
+                          <Clock size={14} color="#ed6c02" />
+                          <span>{status}</span>
+                        </>
+                      )}
+
+                      {!concluido && !emAndamento && (
+                        <>
+                          <Circle size={14} color="#757575" />
+                          <span>{status}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* COLUNA DIREITA */}
         <div className={styles.colunaDireita}>
-          {/* Card Personagem */}
           <div className={styles.cardPersonagem}>
             <h3 className={styles.tituloPersonagem}>Seu Personagem</h3>
 
@@ -214,23 +385,26 @@ export default function Perfil({ nomeUtilizador = "Lorenzo" }) {
             </div>
           </div>
 
-          {/* Botões de Ação */}
-          
           <button
             type="button"
             className={styles.cardAcao}
             onClick={() => router.push("/jogos-salvos")}
           >
             <div className={styles.esquerdaAcao}>
-             <Gamepad2 size={22} color="#0052cc" />
-              <span>jogos Salvos</span>
+              <Gamepad2 size={22} color="#0052cc" />
+              <span>Jogos Salvos</span>
             </div>
             <ChevronRight size={20} color="#0052cc" />
           </button>
+
           <button
             type="button"
             className={styles.cardAcao}
-            onClick={() => router.push("/")}
+            onClick={() => {
+              localStorage.removeItem("token");
+              localStorage.removeItem("usuario");
+              router.push("/");
+            }}
           >
             <div className={styles.esquerdaAcao}>
               <LogOut size={22} color="#0052cc" />
@@ -239,7 +413,6 @@ export default function Perfil({ nomeUtilizador = "Lorenzo" }) {
             <ChevronRight size={20} color="#0052cc" />
           </button>
 
-          {/* Botão Salvar Alterações */}
           <button
             type="button"
             className={styles.botaoSalvar}

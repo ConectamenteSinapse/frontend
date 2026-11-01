@@ -15,27 +15,61 @@ import {
 
 import styles from "../styles/Login.module.css";
 
+import api from "../services/api";
+
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
-
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
   
-function handleLogin(event) {
+
+async function handleLogin(event) {
   event.preventDefault();
 
-  // Direcionamento temporário para testar as telas
-  const perfil = window.prompt(
-    "Escolha o perfil para testar:\n1 - Responsável\n2 - Criança"
-  );
+  setErro("");
+  setCarregando(true);
 
-  if (perfil === "1") {
-    router.push("/responsavel");
-  } else if (perfil === "2") {
-    router.push("/menu");
+  try {
+    const resposta = await api.post("/usuarios/auth", {
+      email,
+      senha,
+    });
+
+    const { token, usuario } = resposta.data;
+
+    // Salvar o token e o perfil do usuário autenticado
+    localStorage.setItem("token", token);
+    localStorage.setItem("usuario", JSON.stringify(usuario));
+
+    console.log("Perfil autenticado:", usuario.perfil);
+
+    // Redirecionar de acordo com o perfil
+    if (usuario.perfil === "responsavel") {
+      router.push("/responsavel");
+    } else if (usuario.perfil === "crianca") {
+      router.push("/menu");
+    } else {
+      setErro("Perfil de usuário não reconhecido.");
+    }
+  } catch (error) {
+    if (error.response) {
+      setErro(
+        error.response.data?.mensagem ||
+          "Não foi possível realizar o login."
+      );
+    } else {
+      setErro(
+        "Não foi possível conectar ao servidor. Verifique se a API está funcionando."
+      );
+    }
+  } finally {
+    setCarregando(false);
   }
 }
+
 
 
   const beneficios = [
@@ -104,6 +138,8 @@ function handleLogin(event) {
           </header>
 
           <form onSubmit={handleLogin} className={styles.formulario}>
+            {erro && <p role="alert">{erro}</p>}
+
             <div className={styles.campo}>
               <div className={styles.iconeCampo}>
                 <Mail size={30} />
@@ -123,6 +159,7 @@ function handleLogin(event) {
               </div>
             </div>
 
+          
             <div className={styles.campo}>
               <div className={styles.iconeCampo}>
                 <LockKeyhole size={30} />
@@ -155,8 +192,12 @@ function handleLogin(event) {
               Esqueceu a senha?
             </Link>
 
-            <button className={styles.botaoEntrar} type="submit">
-              <span>Entrar</span>
+            <button
+              className={styles.botaoEntrar}
+              type="submit"
+              disabled={carregando}
+            >
+              <span>{carregando ? "Entrando..." : "Entrar"}</span>
               <ArrowRight size={32} strokeWidth={2.5} />
             </button>
           </form>

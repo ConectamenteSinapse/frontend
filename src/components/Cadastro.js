@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useRouter } from "next/router";
 import {
@@ -6,43 +7,30 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Calendar,
-  List,
-  Heart,
   Smile,
-  Check,
 } from "lucide-react";
 
 import styles from "../styles/Cadastro.module.css";
+import api from "../services/api";
 
 export default function Cadastro() {
   const router = useRouter();
 
-  // Etapa 1: Responsável | Etapa 2: Criança
-  const [etapa, setEtapa] = useState(1);
+  const [tipoCadastro, setTipoCadastro] = useState("responsavel");
 
-  // Dados dos formulários
   const [formData, setFormData] = useState({
-    nomeResponsavel: "",
+    nome: "",
     email: "",
-    confirmarEmail: "",
     senha: "",
     confirmarSenha: "",
-    nomeCrianca: "",
-    idadeCrianca: "",
-    interesseCrianca: "",
-    observacao: "",
   });
 
-  // Mostrar ou esconder senhas
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [mostrarConfirmarSenha, setMostrarConfirmarSenha] =
-    useState(false);
+  const [mostrarConfirmacao, setMostrarConfirmacao] = useState(false);
 
-  // Mensagens de validação
   const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-  // Atualizar os campos
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -54,61 +42,83 @@ export default function Cadastro() {
     setErro("");
   };
 
-  // Avançar para o cadastro da criança
-  const handleAvancarEtapa = (e) => {
-    e.preventDefault();
+  const handleVoltar = () => {
+    router.push("/");
+  };
 
-    if (
-      formData.email.trim().toLowerCase() !==
-      formData.confirmarEmail.trim().toLowerCase()
-    ) {
-      setErro("Os e-mails não coincidem.");
-      return;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErro("");
 
     if (formData.senha !== formData.confirmarSenha) {
       setErro("As senhas não coincidem.");
       return;
     }
 
-    setErro("");
-    setEtapa(2);
-  };
+    setCarregando(true);
 
-  // Voltar uma etapa ou retornar à página inicial
-  const handleVoltarEtapa = () => {
-    if (etapa === 2) {
-      setEtapa(1);
-      setErro("");
-    } else {
+    try {
+      // 1. Criar a conta do usuário
+      await api.post("/usuarios", {
+        nome: formData.nome,
+        email: formData.email,
+        senha: formData.senha,
+        perfil: tipoCadastro,
+      });
+
+      // 2. Fazer login para obter o token
+      const login = await api.post("/usuarios/auth", {
+        email: formData.email,
+        senha: formData.senha,
+      });
+
+      const token = login.data.token;
+
+      localStorage.setItem("token", token);
+
+      // 3. Criar o perfil correspondente
+      if (tipoCadastro === "responsavel") {
+        await api.post("/responsaveis", {});
+      } else {
+        await api.post("/criancas", {});
+      }
+
+      // 4. Limpar o token e voltar para o login
+      localStorage.removeItem("token");
+
       router.push("/");
+    } catch (error) {
+      console.error("Erro no cadastro:", error);
+
+      localStorage.removeItem("token");
+
+      const mensagem =
+        error.response?.data?.mensagem ||
+        error.response?.data?.erro ||
+        "Não foi possível concluir o cadastro. Verifique os dados e tente novamente.";
+
+      setErro(
+        typeof mensagem === "string"
+          ? mensagem
+          : "Não foi possível concluir o cadastro."
+      );
+    } finally {
+      setCarregando(false);
     }
-  };
-
-  // Finalizar cadastro
-  const handleFinalizarCadastro = (e) => {
-    e.preventDefault();
-
-    console.log("Dados do cadastro:", formData);
-
-    // Redirecionamento demonstrativo.
-    // A integração com a API deverá salvar os dados antes disso.
-    router.push("/menu");
   };
 
   return (
     <main className={styles.pagina}>
-      {/* Topo com seta e logo nas extremidades */}
       <header className={styles.cabecalhoTopo}>
         <button
           type="button"
-          onClick={handleVoltarEtapa}
+          onClick={handleVoltar}
           className={styles.botaoVoltar}
           aria-label="Voltar"
         >
           <img
             src="/images/seta.png"
-            alt=""
+            alt="Voltar"
             className={styles.iconeVoltar}
           />
         </button>
@@ -122,274 +132,180 @@ export default function Cadastro() {
         </div>
       </header>
 
-      {/* Carrossel das duas etapas */}
       <div className={styles.carrosselContainer}>
-        <div
-          className={`${styles.trilhoFormularios} ${
-            etapa === 2 ? styles.mostrarEtapa2 : ""
-          }`}
-        >
-          {/* ETAPA 1: RESPONSÁVEL */}
-          <section className={styles.cardEtapa}>
-            <h1 className={styles.titulo}>Criar conta</h1>
+        <section className={styles.cardEtapa}>
+          <h1 className={styles.titulo}>Criar conta</h1>
 
-            <form
-              onSubmit={handleAvancarEtapa}
-              className={styles.formulario}
-            >
-              <div className={styles.campo}>
-                <User size={22} className={styles.icone} />
-
-                <input
-                  type="text"
-                  name="nomeResponsavel"
-                  placeholder="Nome completo"
-                  autoComplete="name"
-                  value={formData.nomeResponsavel}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <Mail size={22} className={styles.icone} />
-
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="E-mail"
-                  autoComplete="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <Mail size={22} className={styles.icone} />
-
-                <input
-                  type="email"
-                  name="confirmarEmail"
-                  placeholder="Confirmar e-mail"
-                  autoComplete="off"
-                  value={formData.confirmarEmail}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <Lock size={22} className={styles.icone} />
-
-                <input
-                  type={mostrarSenha ? "text" : "password"}
-                  name="senha"
-                  placeholder="Senha"
-                  autoComplete="new-password"
-                  value={formData.senha}
-                  onChange={handleChange}
-                  required
-                />
-
-                <button
-                  type="button"
-                  className={styles.botaoOlho}
-                  onClick={() =>
-                    setMostrarSenha((anterior) => !anterior)
-                  }
-                  aria-label={
-                    mostrarSenha ? "Ocultar senha" : "Mostrar senha"
-                  }
-                >
-                  {mostrarSenha ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
-                </button>
-              </div>
-
-              <div className={styles.campo}>
-                <Lock size={22} className={styles.icone} />
-
-                <input
-                  type={mostrarConfirmarSenha ? "text" : "password"}
-                  name="confirmarSenha"
-                  placeholder="Confirmar senha"
-                  autoComplete="new-password"
-                  value={formData.confirmarSenha}
-                  onChange={handleChange}
-                  required
-                />
-
-                <button
-                  type="button"
-                  className={styles.botaoOlho}
-                  onClick={() =>
-                    setMostrarConfirmarSenha((anterior) => !anterior)
-                  }
-                  aria-label={
-                    mostrarConfirmarSenha
-                      ? "Ocultar confirmação da senha"
-                      : "Mostrar confirmação da senha"
-                  }
-                >
-                  {mostrarConfirmarSenha ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
-                </button>
-              </div>
-
-              {erro && (
-                <p
-                  role="alert"
-                  style={{
-                    color: "#fff",
-                    textAlign: "center",
-                    fontWeight: 700,
-                    margin: "0",
-                  }}
-                >
-                  {erro}
-                </p>
-              )}
-
-              <button type="submit" className={styles.botaoContinuar}>
-                Continuar
-              </button>
-            </form>
-          </section>
-
-          {/* ETAPA 2: CRIANÇA */}
-          <section className={styles.cardEtapa}>
-            <h1 className={styles.titulo}>
-              Agora, vamos cadastrar a criança!
-            </h1>
-
-            <form
-              onSubmit={handleFinalizarCadastro}
-              className={styles.formulario}
-            >
-              <div className={styles.campo}>
-                <User size={22} className={styles.icone} />
-
-                <input
-                  type="text"
-                  name="nomeCrianca"
-                  placeholder="Nome da criança"
-                  value={formData.nomeCrianca}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <Calendar size={22} className={styles.icone} />
-
-                <input
-                  type="number"
-                  name="idadeCrianca"
-                  placeholder="Idade da criança"
-                  min="1"
-                  max="100"
-                  value={formData.idadeCrianca}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <List size={22} className={styles.icone} />
-
-                <select
-                  name="interesseCrianca"
-                  value={formData.interesseCrianca}
-                  onChange={handleChange}
-                  required
-                  className={styles.selectInput}
-                >
-                  <option value="" disabled>
-                    Principal dificuldade da criança
-                  </option>
-                  <option value="jogos">ler</option>
-                  <option value="desenho">escovar os dentes</option>
-                  <option value="musica">lavar as mãos</option>
-                  <option value="matematica">pegar objetos</option>
-                </select>
-              </div>
-
-              <div className={styles.campo}>
-                <Heart size={22} className={styles.icone} />
-
-                <input
-                  type="text"
-                  name="observacao"
-                  placeholder="Observação importante (opcional)"
-                  value={formData.observacao}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <button type="submit" className={styles.botaoContinuar}>
-                Finalizar cadastro
-              </button>
-            </form>
-          </section>
-        </div>
-      </div>
-
-      {/* Indicador de progresso */}
-      <footer className={styles.rodapeProgresso}>
-        <div className={styles.barrasContainer}>
-          <div
-            className={`${styles.barra} ${
-              etapa === 1 ? styles.barraAtiva : ""
-            }`}
-          />
-
-          <div
-            className={`${styles.barra} ${
-              etapa === 2 ? styles.barraAtiva : ""
-            }`}
-          />
-        </div>
-
-        <div className={styles.passosLegenda}>
-          {/* Passo do responsável */}
-          <div
-            className={`${styles.passo} ${
-              etapa === 1 ? styles.passoAtual : ""
-            }`}
+          <form
+            onSubmit={handleSubmit}
+            className={styles.formulario}
           >
-            {etapa === 2 ? (
-              <div className={styles.iconeCheck}>
-                <Check size={16} color="#ffffff" />
-              </div>
-            ) : (
-              <User size={22} color="#ffb703" />
+            {/* Nome completo */}
+            <div className={styles.campo}>
+              <User size={22} className={styles.icone} />
+
+              <input
+                type="text"
+                name="nome"
+                placeholder="Nome completo"
+                value={formData.nome}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            {/* E-mail */}
+            <div className={styles.campo}>
+              <Mail size={22} className={styles.icone} />
+
+              <input
+                type="email"
+                name="email"
+                placeholder="E-mail"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            {/* Senha */}
+            <div className={styles.campo}>
+              <Lock size={22} className={styles.icone} />
+
+              <input
+                type={mostrarSenha ? "text" : "password"}
+                name="senha"
+                placeholder="Senha"
+                value={formData.senha}
+                onChange={handleChange}
+                required
+              />
+
+              <button
+                type="button"
+                className={styles.botaoOlho}
+                onClick={() => setMostrarSenha((prev) => !prev)}
+                aria-label="Mostrar ou ocultar senha"
+              >
+                {mostrarSenha ? (
+                  <EyeOff size={20} />
+                ) : (
+                  <Eye size={20} />
+                )}
+              </button>
+            </div>
+
+            {/* Confirmar senha */}
+            <div className={styles.campo}>
+              <Lock size={22} className={styles.icone} />
+
+              <input
+                type={mostrarConfirmacao ? "text" : "password"}
+                name="confirmarSenha"
+                placeholder="Confirmar senha"
+                value={formData.confirmarSenha}
+                onChange={handleChange}
+                required
+              />
+
+              <button
+                type="button"
+                className={styles.botaoOlho}
+                onClick={() =>
+                  setMostrarConfirmacao((prev) => !prev)
+                }
+                aria-label="Mostrar ou ocultar confirmação da senha"
+              >
+                {mostrarConfirmacao ? (
+                  <EyeOff size={20} />
+                ) : (
+                  <Eye size={20} />
+                )}
+              </button>
+            </div>
+
+            {erro && (
+              <p
+                role="alert"
+                style={{
+                  color: "#fff",
+                  textAlign: "center",
+                  fontWeight: 700,
+                  margin: 0,
+                }}
+              >
+                {erro}
+              </p>
             )}
 
-            <span>1. Responsável</span>
-          </div>
+            <button
+              type="submit"
+              className={styles.botaoContinuar}
+              disabled={carregando}
+            >
+              {carregando ? "Cadastrando..." : "Continuar"}
+            </button>
+          </form>
 
-          {/* Passo da criança */}
+          {/* Seleção do perfil */}
           <div
-            className={`${styles.passo} ${
-              etapa === 2 ? styles.passoAtual : ""
-            }`}
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "12px",
+              marginTop: "24px",
+            }}
           >
-            <Smile
-              size={22}
-              color={etapa === 2 ? "#ffb703" : "#a8c2e8"}
-            />
+            <button
+              type="button"
+              onClick={() => setTipoCadastro("responsavel")}
+              style={{
+                background:
+                  tipoCadastro === "responsavel"
+                    ? "#ffffff"
+                    : "rgba(255,255,255,0.2)",
+                color:
+                  tipoCadastro === "responsavel" ? "#000" : "#fff",
+                border: "none",
+                padding: "8px 18px",
+                borderRadius: "20px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: "bold",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              }}
+            >
+              <User size={16} /> responsável
+            </button>
 
-            <span>2. Criança</span>
+            <button
+              type="button"
+              onClick={() => setTipoCadastro("crianca")}
+              style={{
+                background:
+                  tipoCadastro === "crianca"
+                    ? "#ffffff"
+                    : "rgba(255,255,255,0.2)",
+                color:
+                  tipoCadastro === "crianca" ? "#000" : "#fff",
+                border: "none",
+                padding: "8px 18px",
+                borderRadius: "20px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: "bold",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              }}
+            >
+              <Smile size={16} /> criança
+            </button>
           </div>
-        </div>
-      </footer>
+        </section>
+      </div>
     </main>
   );
 }

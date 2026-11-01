@@ -489,3 +489,38 @@
   background-color: #003d99;
   transform: translateY(-2px);
 }
+
+
+.cartaoTempo {
+  background: #eff6ff;
+  border-radius: 18px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.tituloTempo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tituloTempo h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: #08254b;
+}
+
+.tempoUtilizado {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0755cc;
+}
+
+.limiteTempo {
+  margin: 0;
+  font-size: 13px;
+  color: #526782;
+}

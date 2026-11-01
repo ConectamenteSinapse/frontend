@@ -2,23 +2,47 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";
+import api from "../../../services/api";
 import styles from "./AdcionarConta.module.css";
+import { useRouter } from "next/router";
 
 export default function AdicionarConta() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-
-  function continuar(event) {
+  const [carregando, setCarregando] = useState(false);
+  async function continuar(event) {
     event.preventDefault();
+    if (carregando) return;
 
     if (!email.trim() || !senha.trim()) {
       alert("Preencha o e-mail e a senha.");
       return;
     }
+    const token = localStorage.getItem("token");
 
-    alert("Formulário preenchido! A integração com a API será feita depois.");
+    if (!token?.trim()) {
+      alert("Sua sessão não foi encontrada. Faça login novamente.");
+      router.replace("/");
+      return;
+    }
+    setCarregando(true);
+    try {
+      await api.post("/responsaveis/vincular-crianca", {
+        email: email.trim(),
+        senha,
+      });
+      alert("Criança vinculada com sucesso!");
+      router.push("/responsavel/contas");
+    } catch (erro) {
+      const mensagem =
+        erro.response?.data?.mensagem ||
+        "Não foi possível vincular a criança.";
+      alert(mensagem);
+    } finally {
+      setCarregando(false);
+    }
   }
-
   return (
     <>
       <Head>
@@ -26,7 +50,7 @@ export default function AdicionarConta() {
       </Head>
 
       <main className={styles.pagina}>
-        
+
       <Link
         href="/responsavel/contas"
         className={styles.voltar}
@@ -74,8 +98,12 @@ export default function AdicionarConta() {
               required
             />
 
-            <button type="submit" className={styles.continuar}>
-              Continuar
+            <button
+              type="submit"
+              className={styles.continuar}
+              disabled={carregando}
+            >
+              {carregando ? "Vinculando..." : "Continuar"}
             </button>
           </form>
         </section>

@@ -1,17 +1,75 @@
 
 import Head from "next/head";
 import Link from "next/link";
+import api from "../../../services/api";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import styles from "./Contas.module.css";
 
 export default function Contas() {
-  const contas = [
-    {
-      id: 1,
-      nome: "LORENZO",
-      email: "LORENZODAVID@EMAIL.COM",
-      avatar: "/images/Perfil.png",
-    },
-  ];
+  const [contas, setContas] = useState([]);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const [consultaRealizada, setConsultaRealizada] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    let consultaAtiva = true;
+
+    async function buscarCriancas() {
+      setCarregando(true);
+      setErro(null);
+
+      try {
+        const resposta = await api.get("/responsaveis/minhas-criancas");
+
+        if (!consultaAtiva) return;
+        setContas(resposta.data);
+      } catch (erro) {
+        if (!consultaAtiva) return;
+
+        const status = erro.response?.status;
+
+        if (status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          setContas([]);
+          router.replace("/");
+          return;
+        }
+
+        if (status === 403) {
+          setContas([]);
+          setErro("Você não tem permissão para acessar estas contas.");
+          return;
+        }
+
+        setContas([]);
+        setErro("Não foi possível carregar as contas.");
+        console.error("Erro ao buscar crianças:", erro);
+      } finally {
+        if (consultaAtiva) {
+          setCarregando(false);
+          setConsultaRealizada(true);
+        }
+      }
+    }
+
+    const token = localStorage.getItem("token");
+
+    if (token?.trim()) {
+      buscarCriancas();
+    } else {
+      setCarregando(false);
+      setContas([]);
+      setConsultaRealizada(true);
+      router.replace("/");
+    }
+
+    return () => {
+      consultaAtiva = false;
+    };
+  }, [router]);
 
   return (
     <>
@@ -21,7 +79,6 @@ export default function Contas() {
 
       <main className={styles.pagina}>
         <Link href="/responsavel" className={styles.voltar}>
-          
         </Link>
 
         <img
@@ -43,12 +100,16 @@ export default function Contas() {
             </Link>
           </header>
 
-          {contas.length > 0 ? (
+          {carregando ? (
+            <p className={styles.vazio}>Carregando contas...</p>
+          ) : erro ? (
+            <p className={styles.vazio}>{erro}</p>
+          ) : contas.length > 0 ? (
             <div className={styles.lista}>
               {contas.map((conta) => (
-                <article key={conta.id} className={styles.card}>
+                <article key={conta._id} className={styles.card}>
                   <img
-                    src={conta.avatar}
+                    src="/images/Perfil.png"
                     alt={`Avatar de ${conta.nome}`}
                     className={styles.avatar}
                   />
@@ -59,7 +120,7 @@ export default function Contas() {
                   </div>
 
                   <Link
-                    href={`/responsavel/rendimento?id=${conta.id}`}
+                    href={`/responsavel/rendimento?id=${conta.usuarioId}`}
                     className={styles.detalhes}
                     aria-label={`Ver rendimento de ${conta.nome}`}
                   >
@@ -79,6 +140,10 @@ export default function Contas() {
                 </article>
               ))}
             </div>
+          ) : !consultaRealizada ? (
+            <p className={styles.vazio}>
+              Aguardando autenticação para consultar as contas.
+            </p>
           ) : (
             <p className={styles.vazio}>
               Você não possui contas para monitorar.
