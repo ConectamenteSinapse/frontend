@@ -1,0 +1,453 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0f172a;
+}
+
+.cenarioContainer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-color: #08101d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Badge de Conquista */
+.badgeConquista {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 50;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.iconeEstrelaBadge { font-size: 1rem; }
+.textoConquista { color: #ffffff; font-weight: 700; font-size: 0.95rem; }
+.numeroConquista { background: #ffb703; color: #000; font-weight: 800; font-size: 0.85rem; padding: 2px 8px; border-radius: 10px; }
+
+/* PALCO PRINCIPAL (16:9) */
+.palcoJogo {
+  position: relative;
+  width: 100vw;
+  height: 56.25vw;
+  max-height: 100vh;
+  max-width: 177.78vh;
+  overflow: hidden;
+}
+
+.camadaFundo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.elementoJanela {
+  position: absolute;
+  top: 8%;
+  left: 8%;
+  width: 44%;
+  height: auto;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.elementoJanela:hover { transform: scale(1.02); }
+
+.elementoCriadoMudo {
+  position: absolute;
+  bottom: 25%;
+  left: 2%;
+  width: 13%;
+  height: auto;
+  z-index: 3;
+}
+
+.elementoCama {
+  position: absolute;
+  bottom: 12%;
+  left: 14%;
+  width: 28%;
+  height: auto;
+  cursor: pointer;
+  z-index: 4;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.elementoCama:hover {
+  transform: scale(1.03);
+  filter: brightness(1.08);
+}
+
+@keyframes pulsarLuz {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+  100% { filter: brightness(1); }
+}
+
+.pulsando { animation: pulsarLuz 2s infinite ease-in-out; }
+
+.elementoGuardaRoupa {
+  position: absolute;
+  top: 18%;
+  right: 9%;
+  width: 27%;
+  height: auto;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.elementoGuardaRoupa:hover { transform: scale(1.02); }
+
+.elementoPlanta {
+  position: absolute;
+  bottom: 24%;
+  right: 2%;
+  width: 9%;
+  height: auto;
+  z-index: 4;
+}
+/* PERSONAGEM COM SPRITE SHEET AJUSTADO E TAMANHO IDEAL */
+/* PERSONAGEM COM SPRITE SHEET 100% ALINHADO */
+/* PERSONAGEM COM SPRITE SHEET 100% CORRIGIDO E INTEIRO */
+.personagemMovivel {
+  position: absolute;
+  width: 100px;  /* Largura visível do boneco */
+  height: 120px; /* Altura exata para mostrar da cabeça aos pés */
+  background-image: url('/images/quarto/personagem-walk.png');
+  background-repeat: no-repeat;
+  /* Dizemos ao CSS que a imagem inteira tem 800px de largura e o dobro de altura (ex: 240px para as duas linhas) */
+  background-size: 800px 240px; 
+  background-position: 0px 0px;  /* Alinha exatamente no topo da primeira linha */
+  z-index: 5;
+  transition: left 0.05s linear, bottom 0.05s linear;
+}
+
+.personagemAndando {
+  animation: animarCaminhada 0.6s steps(8) infinite;
+}
+
+@keyframes animarCaminhada {
+  0% { 
+    background-position: 0px 0px; 
+  }
+  100% { 
+    background-position: -800px 0px; 
+  }
+}
+
+/* ESTRELAS PERSONALIZADAS DO FIGMA COM OS NÚMEROS */
+.containerEstrelaCama, .containerEstrelaJanela, .containerEstrelaGuardaRoupa {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+}
+
+.imagemEstrelaIcone {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.numeroEstrelaTexto {
+  position: relative;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 1.2rem;
+  text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000;
+  z-index: 2;
+}
+
+.containerEstrelaCama { bottom: 32%; left: 26%; }
+.containerEstrelaJanela { top: 15%; left: 26%; }
+.containerEstrelaGuardaRoupa { top: 32%; right: 20%; }
+
+/* MODAL DE PERGUNTAS */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modalContainerImagem {
+  position: relative;
+  width: 85%;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.imagemModalFigma {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.botaoFecharModalImg {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.botaoAudioModal {
+  position: absolute;
+  top: 18px;
+  left: 25px;
+  background: #ffb703;
+  border: none;
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  font-size: 1.3rem;
+  cursor: pointer;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: transform 0.2s;
+}
+
+.botaoAudioModal:hover { transform: scale(1.1); }
+
+.gradeCliquesOpcoes {
+  position: absolute;
+  bottom: 8%;
+  left: 7%;
+  width: 86%;
+  height: 50%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 16px;
+  z-index: 10;
+}
+
+.areaOpcao {
+  cursor: pointer;
+  border-radius: 16px;
+  background: transparent;
+  border: none;
+}
+
+.areaOpcao:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Feedback e Animação Festiva */
+.caixaFeedback {
+  position: absolute;
+  top: -65px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  z-index: 30;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  animation: pularFeedback 0.3s ease;
+  white-space: nowrap;
+}
+
+.sucesso { background: #48bb78; color: white; border: 3px solid #2f855a; }
+.erro { background: #f56565; color: white; border: 3px solid #c53030; }
+
+@keyframes pularFeedback {
+  0% { transform: translate(-50%, -20px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.particulaFesta {
+  position: fixed;
+  font-size: 2rem;
+  z-index: 999;
+  pointer-events: none;
+  animation: subirParticula 1.2s ease-out forwards;
+}
+
+@keyframes subirParticula {
+  0% { transform: translate(0, 0) scale(0.5) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--fimX), var(--fimY)) scale(1.4) rotate(360deg); opacity: 0; }
+}
+/* GUARDA-ROUPA NA POSIÇÃO ORIGINAL EQUILIBRADA */
+.elementoGuardaRoupa {
+  position: absolute;
+  top: 18%;
+  right: 9%;  /* Posição original perfeita ao lado da janela e cama */
+  width: 27%;
+  height: auto;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.elementoGuardaRoupa:hover { transform: scale(1.02); }
+
+.containerEstrelaGuardaRoupa { 
+  top: 32%; 
+  right: 20%; 
+}
+/* MODAL DE FIM DE FASE EM FORMATO DE CARDZINHO */
+.modalOverlayFim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.cardContainerFim {
+  position: relative;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  width: 85%;
+  max-width: 460px;
+  padding: 35px 30px;
+  border-radius: 28px;
+  text-align: center;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  border: 4px solid #ffb703;
+  animation: surgirCardFim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes surgirCardFim {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.iconeCardFim {
+  font-size: 3.5rem;
+  margin-bottom: 10px;
+}
+
+.tituloCardFim {
+  color: #0f172a;
+  font-size: 1.6rem;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.textoCardFim {
+  color: #475569;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 25px;
+  line-height: 1.4;
+}
+
+.botoesCardColuna {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.botaoCardContinuar {
+  background: #48bb78;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.botaoCardContinuar:hover {
+  background: #38a169;
+  transform: translateY(-2px);
+}
+
+.botaoCardTentarDeNovo {
+  background: #ffb703;
+  color: #1e293b;
+  border: none;
+  padding: 12px;
+  border-radius: 16px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(255, 183, 3, 0.4);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.botaoCardTentarDeNovo:hover {
+  background: #fb8500;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.botaoCardSair {
+  background: #e2e8f0;
+  color: #64748b;
+  border: none;
+  padding: 10px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.botaoCardSair:hover {
+  background: #cbd5e1;
+  color: #1e293b;
+}
