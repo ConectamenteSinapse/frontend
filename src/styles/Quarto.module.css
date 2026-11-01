@@ -451,3 +451,25 @@ html, body {
   background: #cbd5e1;
   color: #1e293b;
 }
+
+.modalCama {
+  padding: 76px 20px 20px;
+  background: #fff4df;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.tituloPerguntaCama {
+  margin: 0 0 20px;
+  color: #185c88;
+  text-align: center;
+}
+
+.gradeRespostasCama {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-height: 60dvh;
+  overflow-y: auto;
+}

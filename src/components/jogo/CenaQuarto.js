@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import styles from "../../styles/Quarto.module.css";
+import RespostaCard from "./RespostaCard";
 
 export default function CenaQuarto() {
   const [conquistas, setConquistas] = useState(0);
@@ -310,34 +311,130 @@ export default function CenaQuarto() {
       {/* ================= MODAIS DE PERGUNTAS ================= */}
       {modalAtivo === "cama" && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalContainerImagem}>
-            <button onClick={() => setModalAtivo(null)} className={styles.botaoFecharModalImg}>✕</button>
-            <button onClick={() => tocarAudio("/audio/pergunta-cama.mp3")} className={styles.botaoAudioModal} title="Ouvir">🔊</button>
-            <img src="/images/quarto/perguntas.png" alt="Modal Cama" className={styles.imagemModalFigma} />
-            {feedback && <div className={`${styles.caixaFeedback} ${tipoFeedback === 'sucesso' ? styles.sucesso : styles.erro}`}>{feedback}</div>}
-            <div className={styles.gradeCliquesOpcoes}>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoCama(false)}></div>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoCama(true)}></div>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoCama(false)}></div>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoCama(false)}></div>
+          <div className={`${styles.modalContainerImagem} ${styles.modalCama}`}>
+
+            <button
+              onClick={() => setModalAtivo(null)}
+              className={styles.botaoFecharModalImg}
+            >
+              ✕
+            </button>
+
+            <button
+              onClick={() => tocarAudio("/audio/pergunta-cama.mp3")}
+              className={styles.botaoAudioModal}
+              title="Ouvir"
+            >
+              🔊
+            </button>
+
+            <h2 className={styles.tituloPerguntaCama}>
+              O que devemos fazer com a cama?
+            </h2>
+
+            {feedback && (
+              <div
+                className={`${styles.caixaFeedback} ${
+                  tipoFeedback === "sucesso"
+                    ? styles.sucesso
+                    : styles.erro
+                }`}
+              >
+                {feedback}
+              </div>
+            )}
+
+            <div className={styles.gradeRespostasCama}>
+              <RespostaCard
+                texto="Voltar a dormir"
+                imagem="/images/quarto/respostas/cama-1.png"
+                onSelecionar={() => handleEscolherOpcaoCama(false)}
+              />
+
+              <RespostaCard
+                texto="Arrumar a cama"
+                imagem="/images/quarto/respostas/cama-2.png"
+                onSelecionar={() => handleEscolherOpcaoCama(true)}
+              />
+
+              <RespostaCard
+                texto="Deitar na cama"
+                imagem="/images/quarto/respostas/cama-3.png"
+                onSelecionar={() => handleEscolherOpcaoCama(false)}
+              />
+
+              <RespostaCard
+                texto="Usar o celular"
+                imagem="/images/quarto/respostas/cama-4.png"
+                onSelecionar={() => handleEscolherOpcaoCama(false)}
+              />
             </div>
+
           </div>
         </div>
       )}
 
       {modalAtivo === "janela" && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalContainerImagem}>
-            <button onClick={() => setModalAtivo(null)} className={styles.botaoFecharModalImg}>✕</button>
-            <button onClick={() => tocarAudio("/audio/pergunta-janela.mp3")} className={styles.botaoAudioModal} title="Ouvir">🔊</button>
-            <img src="/images/quarto/pergunta2.png" alt="Modal Janela" className={styles.imagemModalFigma} />
-            {feedback && <div className={`${styles.caixaFeedback} ${tipoFeedback === 'sucesso' ? styles.sucesso : styles.erro}`}>{feedback}</div>}
-            <div className={styles.gradeCliquesOpcoes}>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoJanela(true)}></div>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoJanela(false)}></div>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoJanela(false)}></div>
-              <div className={styles.areaOpcao} onClick={() => handleEscolherOpcaoJanela(false)}></div>
+          <div className={`${styles.modalContainerImagem} ${styles.modalCama}`}>
+
+            <button
+              onClick={() => setModalAtivo(null)}
+              className={styles.botaoFecharModalImg}
+            >
+              ✕
+            </button>
+
+            <button
+              onClick={() => tocarAudio("/audio/pergunta-janela.mp3")}
+              className={styles.botaoAudioModal}
+              title="Ouvir"
+            >
+              🔊
+            </button>
+
+            <h2 className={styles.tituloPerguntaCama}>
+              O que devemos fazer com a cortina?
+            </h2>
+
+            {feedback && (
+              <div
+                className={`${styles.caixaFeedback} ${
+                  tipoFeedback === "sucesso"
+                    ? styles.sucesso
+                    : styles.erro
+                }`}
+              >
+                {feedback}
+              </div>
+            )}
+
+            <div className={styles.gradeRespostasCama}>
+              <RespostaCard
+                texto="Abrir a cortina"
+                imagem="/images/quarto/respostas/cortina-1.png"
+                onSelecionar={() => handleEscolherOpcaoJanela(true)}
+              />
+
+              <RespostaCard
+                texto="Puxar a cortina"
+                imagem="/images/quarto/respostas/cortina-2.png"
+                onSelecionar={() => handleEscolherOpcaoJanela(false)}
+              />
+
+              <RespostaCard
+                texto="Deixar a cortina fechada"
+                imagem="/images/quarto/respostas/cortina-3.png"
+                onSelecionar={() => handleEscolherOpcaoJanela(false)}
+              />
+
+              <RespostaCard
+                texto="Usar o controle"
+                imagem="/images/quarto/respostas/cortina-4.png"
+                onSelecionar={() => handleEscolherOpcaoJanela(false)}
+              />
             </div>
+
           </div>
         </div>
       )}
