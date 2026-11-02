@@ -1,9 +1,11 @@
+import { Volume2 } from "lucide-react";
 import styles from "./RespostaCard.module.css";
 export default function RespostaCard({
   texto,
   imagem,
   audio,
   onSelecionar,
+  disabled = false,
 }) {
   function reproduzirAudio(event) {
     event.stopPropagation();
@@ -21,6 +23,7 @@ export default function RespostaCard({
         <button
         type="button"
         className={styles.selecao}
+        disabled={disabled}
         onClick={onSelecionar}
         aria-label={`Selecionar: ${texto}`}
         >
@@ -42,7 +45,7 @@ export default function RespostaCard({
         disabled={!audio}
         aria-label={`Ouvir alternativa: ${texto}`}
         >
-        🔊
+        <Volume2 size={24} aria-hidden="true" />
         </button>
     </div>
     );

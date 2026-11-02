@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
-import { Plus, User, RotateCcw, ChevronRight } from "lucide-react";
+import { Plus, User, RotateCcw, ChevronRight, LogOut } from "lucide-react";
 import styles from "../styles/HomeMenu.module.css";
 
-export default function HomeMenu({ nomeUtilizador = "Lorenzo" }) {
+export default function HomeMenu({ nomeUtilizador = "Lorenzo", onSairDaConta, saindo = false }) {
   const opcoesMenu = [
     {
       id: "novo-jogo",
@@ -24,7 +24,7 @@ export default function HomeMenu({ nomeUtilizador = "Lorenzo" }) {
       titulo: "Carregar Jogo",
       subtitulo: "Continue de onde parou",
       Icone: RotateCcw,
-      rota: "/jogos/continuar",
+      rota: "/jogos-salvos",
     },
   ];
 
@@ -73,6 +73,10 @@ export default function HomeMenu({ nomeUtilizador = "Lorenzo" }) {
           </Link>
         ))}
       </section>
+      <button type="button" className={styles.sairButton} onClick={onSairDaConta} disabled={saindo}>
+        <LogOut size={22} aria-hidden="true" />
+        Sair da Conta
+      </button>
     </main>
   );
 }

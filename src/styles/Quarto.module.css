@@ -19,20 +19,55 @@ html, body {
 }
 
 /* Badge de Conquista */
+.botaoSairPartida, .botaoSairPartidaDialogo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 2px solid #75baff;
+  border-radius: 14px;
+  background: #0758c9;
+  color: white;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.botaoSairPartida { position: fixed; top: 8px; left: 12px; z-index: 1500; }
+.botaoSairPartida:hover, .botaoSairPartidaDialogo:hover { background: #0649a7; }
+.botaoSairPartida:focus-visible, .botaoSairPartidaDialogo:focus-visible { outline: 3px solid #ffcf50; outline-offset: 3px; }
+.botaoSairPartidaDialogo:disabled { opacity: 0.7; cursor: default; }
+.botaoSairPartida svg, .botaoSairPartidaDialogo svg { flex-shrink: 0; }
 .badgeConquista {
   position: absolute;
-  top: 24px;
-  right: 28px;
+  top: 8px;
+  right: 12px;
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 6px 14px;
   border-radius: 20px;
   display: flex;
+  flex-wrap: wrap;
+  max-width: calc(100% - 236px);
   align-items: center;
   gap: 8px;
+  color: #ffffff;
   z-index: 50;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.estrelasAcumuladas {
+  flex-basis: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  padding-top: 4px;
+  color: #ffe08a;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
 }
 
 .iconeEstrelaBadge { font-size: 1rem; }
@@ -131,13 +166,16 @@ html, body {
 /* PERSONAGEM COM SPRITE SHEET 100% CORRIGIDO E INTEIRO */
 .personagemMovivel {
   position: absolute;
-  width: 100px;  /* Largura visível do boneco */
-  height: 120px; /* Altura exata para mostrar da cabeça aos pés */
+  width: 32.5%; /* Calibração visual: corpo aparente compatível com a cama. */
+  aspect-ratio: 5 / 6; /* Preserva a proporção visual de 100 x 120. */
   background-image: url('/images/quarto/personagem-walk.png');
   background-repeat: no-repeat;
-  /* Dizemos ao CSS que a imagem inteira tem 800px de largura e o dobro de altura (ex: 240px para as duas linhas) */
-  background-size: 800px 240px; 
+  /* Oito colunas e duas linhas, sempre proporcionais ao quadro. */
+  background-size: 800% 200%;
   background-position: 0px 0px;  /* Alinha exatamente no topo da primeira linha */
+  /* Mantém os pés do quadro parado: (1 - 7.8125 / 32.5) * (77 / 512). */
+  transform: translateY(11.424%);
+  pointer-events: none;
   z-index: 5;
   transition: left 0.05s linear, bottom 0.05s linear;
 }
@@ -151,15 +189,17 @@ html, body {
     background-position: 0px 0px; 
   }
   100% { 
-    background-position: -800px 0px; 
+    /* 100% desloca sete quadros; 800% / 7 desloca oito. */
+    background-position: calc(800% / 7) 0px;
   }
 }
 
 /* ESTRELAS PERSONALIZADAS DO FIGMA COM OS NÚMEROS */
 .containerEstrelaCama, .containerEstrelaJanela, .containerEstrelaGuardaRoupa {
   position: absolute;
-  width: 48px;
-  height: 48px;
+  width: 3.75%;
+  aspect-ratio: 1;
+  container-type: inline-size;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -179,7 +219,7 @@ html, body {
   position: relative;
   color: #ffffff;
   font-weight: 900;
-  font-size: 1.2rem;
+  font-size: 40cqw; /* 40% da estrela: 19,2px quando ela mede 48px. */
   text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000;
   z-index: 2;
 }
@@ -452,6 +492,17 @@ html, body {
   color: #1e293b;
 }
 
+.botaoCardIndisponivel {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.legendaEmDesenvolvimento {
+  margin-top: -8px;
+  text-align: center;
+  color: #64748b;
+}
+
 .modalCama {
   padding: 76px 20px 20px;
   background: #fff4df;
@@ -473,3 +524,39 @@ html, body {
   max-height: 60dvh;
   overflow-y: auto;
 }
+
+/* Controles separados em telas estreitas; o palco mantém suas coordenadas relativas. */
+@media (max-width: 600px) {
+  .badgeConquista { top: 68px; left: 12px; right: 12px; max-width: none; }
+}
+/* Em paisagem baixa, reservar espaço aos controles evita cobrir os móveis. */
+@media (max-height: 600px) {
+  .cenarioContainer { --espacoControles: 128px; box-sizing: border-box; padding-top: var(--espacoControles); }
+  .palcoJogo { max-height: calc(100vh - var(--espacoControles)); max-width: calc((100vh - var(--espacoControles)) * 16 / 9); }
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  .cenarioContainer { --espacoControles: 224px; }
+}
+
+/* Diálogo nativo: foco contido e interação com o restante da página bloqueada. */
+.modalOrientacao {
+  margin: auto;
+  box-sizing: border-box;
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 24px;
+  border: 2px solid #75baff;
+  border-radius: 20px;
+  background: #fff;
+  color: #0f172a;
+  text-align: center;
+  font-size: 1.125rem;
+}
+.modalOrientacao::backdrop { background: rgba(0, 0, 0, 0.75); }
+.modalOrientacao h2 { margin-top: 0; font-size: 1.5rem; }
+.modalOrientacao p { line-height: 1.5; }
+
+/* Avatares sem sprite próprio preservam a ilustração e a movimentação existentes. */
+.personagemAvatar { background-image: none; transform: none; }
+.personagemAvatar img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; display: block; }

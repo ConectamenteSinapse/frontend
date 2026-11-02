@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import {
   User,
@@ -30,6 +30,22 @@ export default function Cadastro() {
 
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [envioBloqueado, setEnvioBloqueado] = useState(false);
+  const envioRef = useRef(null);
+  const cicloRef = useRef(null);
+
+  useEffect(() => {
+    const ciclo = { ativo: true };
+    cicloRef.current = ciclo;
+    return () => {
+      ciclo.ativo = false;
+      const envio = envioRef.current;
+      if (envio?.ciclo === ciclo) {
+        envio.controller.abort();
+        if (envio.token && localStorage.getItem("token") === envio.token) localStorage.removeItem("token");
+      }
+    };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,7 +55,7 @@ export default function Cadastro() {
       [name]: value,
     }));
 
-    setErro("");
+    if (!envioRef.current?.bloqueado) setErro("");
   };
 
   const handleVoltar = () => {
@@ -48,6 +64,8 @@ export default function Cadastro() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const ciclo = cicloRef.current;
+    if (!ciclo?.ativo || envioRef.current) return;
     setErro("");
 
     if (formData.senha !== formData.confirmarSenha) {
@@ -55,6 +73,10 @@ export default function Cadastro() {
       return;
     }
 
+    const envio = { ciclo, controller: new AbortController(), etapa: 1 };
+    envioRef.current = envio;
+    const atual = () => ciclo.ativo && cicloRef.current === ciclo && envioRef.current === envio && !envio.controller.signal.aborted;
+    const config = { signal: envio.controller.signal, timeout: 10_000 };
     setCarregando(true);
 
     try {
@@ -64,30 +86,37 @@ export default function Cadastro() {
         email: formData.email,
         senha: formData.senha,
         perfil: tipoCadastro,
-      });
+      }, config);
+      if (!atual()) return;
 
       // 2. Fazer login para obter o token
+      envio.etapa = 2;
       const login = await api.post("/usuarios/auth", {
         email: formData.email,
         senha: formData.senha,
-      });
+      }, config);
+      if (!atual()) return;
 
       const token = login.data.token;
 
       localStorage.setItem("token", token);
+      envio.token = String(token);
 
       // 3. Criar o perfil correspondente
+      envio.etapa = 3;
       if (tipoCadastro === "responsavel") {
-        await api.post("/responsaveis", {});
+        await api.post("/responsaveis", {}, config);
       } else {
-        await api.post("/criancas", {});
+        await api.post("/criancas", {}, config);
       }
+      if (!atual()) return;
 
       // 4. Limpar o token e voltar para o login
       localStorage.removeItem("token");
 
       router.push("/");
     } catch (error) {
+      if (!atual()) return;
       console.error("Erro no cadastro:", error);
 
       localStorage.removeItem("token");
@@ -95,15 +124,22 @@ export default function Cadastro() {
       const mensagem =
         error.response?.data?.mensagem ||
         error.response?.data?.erro ||
-        "Não foi possível concluir o cadastro. Verifique os dados e tente novamente.";
+        "Não foi possível concluir o cadastro.";
 
-      setErro(
-        typeof mensagem === "string"
-          ? mensagem
-          : "Não foi possível concluir o cadastro."
-      );
+      // Somente rejeições conhecidas do primeiro POST descartam criação nesta operação.
+      // Timeout/erro de rede não provam rollback; depois da etapa 1 já pode existir usuário sem perfil.
+      envio.podeTentarNovamente = envio.etapa === 1 && [400, 409].includes(error.response?.status);
+      envio.bloqueado = !envio.podeTentarNovamente;
+      setEnvioBloqueado(envio.bloqueado);
+      const texto = typeof mensagem === "string" ? mensagem : "Não foi possível concluir o cadastro.";
+      setErro(envio.bloqueado
+        ? texto + " A conta pode ter sido criada, mas o cadastro não foi concluído ou confirmado. Não envie novamente; tente entrar ou peça ajuda para verificar a conta."
+        : texto);
     } finally {
-      setCarregando(false);
+      if (atual()) {
+        setCarregando(false);
+        if (envio.podeTentarNovamente) envioRef.current = null;
+      }
     }
   };
 
@@ -241,7 +277,7 @@ export default function Cadastro() {
             <button
               type="submit"
               className={styles.botaoContinuar}
-              disabled={carregando}
+              disabled={carregando || envioBloqueado}
             >
               {carregando ? "Cadastrando..." : "Continuar"}
             </button>

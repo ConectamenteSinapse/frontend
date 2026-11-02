@@ -17,11 +17,11 @@ function montar(nome, responder, dadosIniciais = {}, apiReal) {
     setItem: (k, v) => armazenamento.set(k, String(v)),
     removeItem: (k) => armazenamento.delete(k),
   };
-  const chamadas = [], navegacoes = [], logs = [], estados = [];
-  let indice = 0, arvore;
-  const api = apiReal ?? { post: async (url, body) => {
-    chamadas.push({ url, body, token: localStorage.getItem("token") });
-    return responder(url, body, chamadas.length);
+  const chamadas = [], navegacoes = [], logs = [], estados = [], refs = [], efeitos = [], pendentes = [], escritas = [];
+  let indice = 0, indiceRef = 0, indiceEfeito = 0, arvore;
+  const api = apiReal ?? { post: async (url, body, config) => {
+    chamadas.push({ url, body, token: localStorage.getItem("token"), config });
+    return responder(url, body, chamadas.length, config);
   }};
   const arquivo = path.resolve(__dirname, "../src/components", nome + ".js");
   const { code } = babel.transformSync(readFileSync(arquivo, "utf8"), {
@@ -29,14 +29,17 @@ function montar(nome, responder, dadosIniciais = {}, apiReal) {
     presets: [[presetReact, { runtime: "automatic" }]], plugins: [commonjs],
   });
   const contexto = {
-    exports: {}, localStorage, window: { localStorage, location: { href: "" } },
+    exports: {}, localStorage, AbortController, window: { localStorage, location: { href: "" } },
     console: { log: (...args) => logs.push(args), error: (...args) => logs.push(args) },
     require(id) {
       if (id === "react") return { useState(inicial) {
         const i = indice++;
         if (!(i in estados)) estados[i] = inicial;
-        return [estados[i], (valor) => { estados[i] = typeof valor === "function" ? valor(estados[i]) : valor; }];
-      }};
+        return [estados[i], (valor) => { escritas.push(i); estados[i] = typeof valor === "function" ? valor(estados[i]) : valor; }];
+      },
+        useRef(inicial) { const i = indiceRef++; return refs[i] ?? (refs[i] = { current: inicial }); },
+        useEffect(fn, deps) { const i = indiceEfeito++, anterior = efeitos[i]; if (!anterior || deps.some((v, j) => !Object.is(v, anterior.deps[j]))) pendentes.push(() => { anterior?.cleanup?.(); efeitos[i] = { deps, cleanup: fn() }; }); },
+      };
       if (id === "react/jsx-runtime") return require(id);
       if (id === "next/router") return { useRouter: () => ({ push: (destino) => navegacoes.push(destino) }) };
       if (id === "next/link") return { __esModule: true, default: () => null };
@@ -54,8 +57,9 @@ function montar(nome, responder, dadosIniciais = {}, apiReal) {
     return [node, ...(node.props.children === undefined ? [] : elementos(node.props.children))];
   }
   const tela = {
-    chamadas, navegacoes, logs, armazenamento, localStorage, window: contexto.window,
-    renderizar() { indice = 0; arvore = contexto.exports.default(); return tela; },
+    chamadas, navegacoes, logs, armazenamento, localStorage, escritas, window: contexto.window,
+    renderizar() { indice = indiceRef = indiceEfeito = 0; arvore = contexto.exports.default(); while (pendentes.length) pendentes.shift()(); return tela; },
+    desmontar() { efeitos.forEach((e) => e.cleanup?.()); },
     elementos,
     campo(id, valor) {
       const no = elementos().find((n) => n.type === "input" && (n.props.id === id || n.props.name === id));
@@ -81,14 +85,19 @@ function montar(nome, responder, dadosIniciais = {}, apiReal) {
 const usuario = { id: "usuario-ficticio", nome: "Teste", email: "teste@example.invalid", perfil: "responsavel" };
 const sucesso = () => ({ data: { token: "jwt-ficticio", usuario } });
 function preencherLogin(tela) { return tela.campo("email", usuario.email).campo("senha", "senha fictícia"); }
-function preencherEtapa(tela, sufixo) {
-  for (const [campo, valor] of [["nome", "Teste"], ["email", sufixo + "@example.invalid"], ["senha", "senha fictícia"], ["confirmarSenha", "senha fictícia"]]) tela.campo(campo + sufixo, valor);
+function selecionarTipoCadastro(tela, perfil) {
+  const rotulo = perfil === "crianca" ? "criança" : "responsável";
+  const botao = tela.elementos().find((n) => n.type === "button" &&
+    [n.props.children].flat().some((item) => typeof item === "string" && item.trim() === rotulo));
+  assert.ok(botao, "Seletor de tipo de conta ausente: " + perfil);
+  botao.props.onClick();
+  return tela.renderizar();
 }
-async function cadastroPronto(responder = sucesso, iniciais = {}, apiReal) {
+function cadastroPreenchido(perfil, responder = sucesso, iniciais = {}, apiReal) {
   const tela = montar("Cadastro", responder, iniciais, apiReal);
-  preencherEtapa(tela, "Responsavel");
-  await tela.enviar(); tela.renderizar();
-  preencherEtapa(tela, "Crianca");
+  selecionarTipoCadastro(tela, perfil);
+  for (const [campo, valor] of [["nome", "Teste"], ["email", perfil + "@example.invalid"],
+    ["senha", "senha fictícia"], ["confirmarSenha", "senha fictícia"]]) tela.campo(campo, valor);
   return tela;
 }
 
@@ -143,52 +152,95 @@ test("perfil de login desconhecido é salvo antes de apresentar erro", async () 
   assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
   assert.deepEqual(tela.navegacoes, []);
 });
-for (const sufixo of ["Responsavel", "Crianca"]) test(`cadastro: confirmação divergente ${sufixo} não chama API`, async () => {
-  const tela = sufixo === "Responsavel" ? montar("Cadastro", sucesso) : await cadastroPronto();
-  tela.campo("senha" + sufixo, "senha fictícia").campo("confirmarSenha" + sufixo, "outra");
-  await tela.enviar();
-  assert.match(tela.erro(), /não coincidem/);
+for (const perfil of ["responsavel", "crianca"]) {
+  test("cadastro " + perfil + ": confirmação divergente não chama API", async () => {
+    const tela = cadastroPreenchido(perfil);
+    tela.campo("confirmarSenha", "outra senha fictícia");
+    await tela.enviar();
+    assert.equal(tela.erro(), "As senhas não coincidem.");
+    assert.equal(tela.chamadas.length, 0);
+    assert.deepEqual(tela.navegacoes, []);
+    assert.equal(tela.armazenamento.size, 0);
+    assert.equal(tela.botao().props.disabled, false);
+    tela.campo("confirmarSenha", "senha fictícia");
+    await tela.enviar();
+    assert.equal(tela.chamadas.length, 3, "corrigir a validação permite o primeiro cadastro");
+    assert.deepEqual(tela.navegacoes, ["/"]);
+  });
+
+  test("cadastro " + perfil + ": três chamadas, payloads e token temporário", async () => {
+    const token = "jwt-temporario-" + perfil + "-ficticio";
+    const tela = cadastroPreenchido(perfil, (url) => url === "/usuarios/auth"
+      ? { data: { token } } : { data: { _id: "registro-ficticio" } });
+    assert.equal(tela.chamadas.length, 0, "selecionar e preencher não cadastra automaticamente");
+    assert.deepEqual(tela.elementos().filter((n) => n.type === "input").map((n) => n.props.name),
+      ["nome", "email", "senha", "confirmarSenha"]);
+    await tela.enviar();
+    assert.deepEqual(tela.chamadas.map((c) => c.url), ["/usuarios", "/usuarios/auth", perfil === "responsavel" ? "/responsaveis" : "/criancas"]);
+    assert.deepEqual(tela.chamadas.map((c) => ({ ...c.body })), [
+      { nome: "Teste", email: perfil + "@example.invalid", senha: "senha fictícia", perfil },
+      { email: perfil + "@example.invalid", senha: "senha fictícia" }, {},
+    ]);
+    assert.deepEqual(tela.chamadas.map((c) => c.token), [null, null, token]);
+    assert.ok(tela.chamadas.every((c) => c.config.timeout === 10_000 && !c.config.signal.aborted));
+    assert.equal(tela.armazenamento.has("token"), false);
+    assert.equal(tela.armazenamento.has("usuario"), false);
+    assert.deepEqual(tela.navegacoes, ["/"]);
+    assert.equal(tela.erro(), undefined);
+    assert.equal(tela.botao().props.disabled, false);
+    assert.deepEqual(tela.logs, []);
+  });
+
+  for (let etapa = 1; etapa <= 3; etapa++) test("cadastro " + perfil + ": falha na etapa " + etapa + " interrompe fluxo e remove token", async () => {
+    const usuarioAnterior = JSON.stringify({ perfil: "crianca" });
+    const token = "jwt-temporario-" + perfil + "-ficticio";
+    const tela = cadastroPreenchido(perfil, (_url, _body, n) => {
+      if (n === etapa) throw { response: { status: etapa === 1 ? 400 : 500, data: { mensagem: "Falha fictícia na etapa" } } };
+      return { data: { token } };
+    }, { token: "token-anterior-ficticio", usuario: usuarioAnterior });
+    await tela.enviar();
+    assert.deepEqual(tela.chamadas.map((c) => c.url), ["/usuarios", "/usuarios/auth", perfil === "responsavel" ? "/responsaveis" : "/criancas"].slice(0, etapa));
+    assert.ok(tela.erro().startsWith("Falha fictícia na etapa"));
+    if (etapa > 1) assert.match(tela.erro(), /A conta pode ter sido criada/);
+    assert.deepEqual(tela.navegacoes, []);
+    assert.equal(tela.botao().props.disabled, etapa > 1);
+    assert.equal(tela.armazenamento.has("token"), false);
+    assert.deepEqual(tela.chamadas.map((c) => c.token), ["token-anterior-ficticio", "token-anterior-ficticio", token].slice(0, etapa));
+    assert.equal(tela.armazenamento.get("usuario"), usuarioAnterior, "Cadastro não remove usuario preexistente");
+    tela.campo("email", "corrigido@example.invalid");
+    await tela.enviar();
+    assert.equal(tela.chamadas.length, etapa === 1 ? 4 : etapa, "somente rejeição antes da criação permite nova sequência explícita");
+  });
+
+  for (const [nome, erro, mensagem] of [
+    ["rede", new Error("offline fictício"), "Não foi possível concluir o cadastro."],
+    ["500 vazio", { response: { status: 500, data: {} } }, "Não foi possível concluir o cadastro."],
+    ["erro textual", { response: { status: 400, data: { erro: "Falha textual fictícia" } } }, "Falha textual fictícia"],
+    ["mensagem não textual", { response: { status: 400, data: { mensagem: { detalhe: "fictício" } } } }, "Não foi possível concluir o cadastro."],
+  ]) test("cadastro " + perfil + ": erro " + nome + " apresenta mensagem e limpa token", async () => {
+    const tela = cadastroPreenchido(perfil, () => { throw erro; });
+    await tela.enviar();
+    const incerto = erro.response?.status !== 400;
+    if (incerto) {
+      assert.ok(tela.erro().startsWith(mensagem));
+      assert.match(tela.erro(), /Não envie novamente/);
+      assert.doesNotMatch(tela.erro(), /tente novamente/);
+    } else assert.equal(tela.erro(), mensagem);
+    assert.equal(tela.chamadas.length, 1);
+    assert.equal(tela.armazenamento.has("token"), false);
+    assert.equal(tela.botao().props.disabled, incerto);
+    assert.deepEqual(tela.navegacoes, []);
+  });
+}
+
+test("cadastro: trocar tipo de conta preserva campos e cadastra somente o tipo escolhido", async () => {
+  const tela = cadastroPreenchido("crianca");
+  selecionarTipoCadastro(tela, "responsavel");
   assert.equal(tela.chamadas.length, 0);
-});
-test("cadastro completo: sete chamadas, alternância JWT, perfis e vínculo", async () => {
-  const tela = await cadastroPronto((url, body, n) => ({ data: { token: n === 2 ? "jwt-resp-ficticio" : "jwt-crianca-ficticio", usuario } }));
   await tela.enviar();
-  assert.deepEqual(tela.chamadas.map((c) => c.url), ["/usuarios", "/usuarios/auth", "/responsaveis", "/usuarios", "/usuarios/auth", "/criancas", "/responsaveis/vincular-crianca"]);
-  assert.equal(tela.chamadas.length, 7); // comentários numeram 9 etapas, mas são 7 requests.
-  assert.equal(tela.chamadas[0].body.perfil, "responsavel");
-  assert.equal(tela.chamadas[3].body.perfil, "crianca");
-  assert.equal(tela.chamadas[2].token, "jwt-resp-ficticio");
-  assert.equal(tela.chamadas[5].token, "jwt-crianca-ficticio");
-  assert.equal(tela.chamadas[6].token, "jwt-resp-ficticio");
-  assert.deepEqual(tela.navegacoes, ["/responsavel"]);
-  assert.equal(tela.armazenamento.has("usuario"), false);
-  assert.ok(tela.logs.some((args) => args[1]?.token === "jwt-resp-ficticio"), "log expõe resposta contendo JWT fictício");
-});
-for (let etapa = 1; etapa <= 7; etapa++) test(`falha na chamada ${etapa}: interrompe fluxo, mostra erro e caracteriza storage residual`, async () => {
-  const tela = await cadastroPronto((url, body, n) => {
-    if (n === etapa) throw { response: { data: { mensagem: "Falha fictícia na etapa" } } };
-    return { data: { token: n === 2 ? "jwt-resp-ficticio" : "jwt-crianca-ficticio", usuario } };
-  }, { token: "token-anterior-ficticio", usuario: JSON.stringify({ perfil: "crianca" }) });
-  await tela.enviar();
-  assert.equal(tela.chamadas.length, etapa);
-  assert.equal(tela.erro(), "Falha fictícia na etapa");
-  assert.deepEqual(tela.navegacoes, []);
-  assert.equal(tela.botao().props.disabled, false);
-  assert.equal(tela.armazenamento.get("token"), etapa <= 2 ? "token-anterior-ficticio" : etapa === 6 ? "jwt-crianca-ficticio" : "jwt-resp-ficticio");
-  assert.equal(JSON.parse(tela.armazenamento.get("usuario")).perfil, "crianca");
-});
-test("cadastro: erro de rede apresenta fallback", async () => {
-  const tela = await cadastroPronto(() => { throw new Error("offline fictício"); });
-  await tela.enviar(); assert.match(tela.erro(), /Não foi possível concluir o cadastro/);
-});
-test("caracterização: seletor criança permite pular etapa responsável e enviar dados vazios", async () => {
-  const tela = montar("Cadastro", () => { throw { response: { data: { mensagem: "Campos obrigatórios inválidos ou não preenchidos" } } }; });
-  const botoes = tela.elementos().filter((n) => n.type === "button");
-  botoes.at(-1).props.onClick(); tela.renderizar(); preencherEtapa(tela, "Crianca");
-  await tela.enviar();
-  assert.equal(tela.chamadas[0].body.nome, "");
-  assert.equal(tela.chamadas[0].body.email, "");
-  assert.match(tela.erro(), /Campos obrigatórios/);
+  assert.deepEqual(tela.chamadas.map((c) => c.url), ["/usuarios", "/usuarios/auth", "/responsaveis"]);
+  assert.deepEqual({ ...tela.chamadas[0].body }, { nome: "Teste", email: "crianca@example.invalid", senha: "senha fictícia", perfil: "responsavel" });
+  assert.deepEqual(tela.navegacoes, ["/"]);
 });
 
 test("integração HTTP real: Login + api.js/Axios + Router/Controller/Service + bcrypt/JWT; banco simulado", async (t) => {
@@ -245,67 +297,209 @@ test("responsável: sessão protege painel e logout remove token/usuário", () =
   assert.equal(tela.navegacoesJanela[0].destino, "/");
 });
 
-test("cadastro: loading desabilita botão; handler direto ainda permite envio concorrente", async () => {
-  const resolvers = [];
-  const tela = await cadastroPronto((url, body, n) => n <= 2 ? new Promise((r) => resolvers.push(r)) : sucesso());
-  const a = tela.enviar(); tela.renderizar();
-  assert.equal(tela.botao().props.disabled, true);
-  const b = tela.enviar();
-  assert.equal(tela.chamadas.length, 2);
-  resolvers.forEach((r) => r(sucesso())); await Promise.all([a, b]); tela.renderizar();
-  assert.equal(tela.botao().props.disabled, false);
-});
-
-test("cadastro: 409 apresenta mensagem backend sem redirecionar", async () => {
-  const tela = await cadastroPronto(() => { throw { response: { status: 409, data: { erro: true, mensagem: "Email já cadastrado" } } }; });
-  await tela.enviar();
-  assert.equal(tela.erro(), "Email já cadastrado");
-  assert.deepEqual(tela.navegacoes, []);
-});
-
-test("integração HTTP real de Cadastro: sete requests até vínculo; somente Models simulados", async (t) => {
-  const [{ default: express }, { default: Usuario }, { default: Responsavel }, { default: Crianca },
-    { default: usuarios }, { default: responsaveis }, { default: criancas }] = await Promise.all([
-    import("../../backend/node_modules/express/index.js"), import("../../backend/models/usuarioModel.js"),
-    import("../../backend/models/responsavelModel.js"), import("../../backend/models/criancaModel.js"),
-    import("../../backend/routes/usuarioRoutes.js"), import("../../backend/routes/responsavelRoutes.js"),
-    import("../../backend/routes/criancaRoutes.js"),
-  ]);
-  const anterior = process.env.JWT_SECRET;
-  process.env.JWT_SECRET = "segredo-ficticio-cadastro-http";
-  t.after(() => { if (anterior === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = anterior; });
-  const contas = [], perfisResp = [], perfisCrianca = [];
-  for (const [Model, dados] of [[Usuario, contas], [Responsavel, perfisResp], [Crianca, perfisCrianca]]) {
-    t.mock.method(Model, "create", async (body) => {
-      const doc = new Model(body); await doc.validate(); dados.push(doc); return doc;
-    });
-    t.mock.method(Model, "findOne", async (filtro) => dados.find((doc) =>
-      Object.entries(filtro).every(([k, v]) => String(doc[k]) === String(v))) ?? null);
-  }
-  t.mock.method(Usuario, "findById", async (id) => contas.find((u) => String(u._id) === String(id)) ?? null);
-  t.mock.method(Crianca, "findOneAndUpdate", async (filtro, update) => {
-    const doc = perfisCrianca.find((c) => String(c._id) === String(filtro._id) && c.responsavelId === null);
-    if (!doc) return null;
-    Object.assign(doc, update.$set); return doc;
+for (const perfil of ["responsavel", "crianca"]) {
+  test("cadastro " + perfil + ": loading desabilita botão até concluir as três chamadas", async () => {
+    let liberar;
+    const tela = cadastroPreenchido(perfil, (url) => url === "/usuarios"
+      ? new Promise((resolve) => { liberar = resolve; }) : sucesso());
+    const envio = tela.enviar(); tela.renderizar();
+    assert.equal(tela.botao().props.disabled, true);
+    assert.deepEqual(tela.chamadas.map((c) => c.url), ["/usuarios"]);
+    assert.deepEqual(tela.navegacoes, []);
+    liberar({ data: {} }); await envio; tela.renderizar();
+    assert.equal(tela.botao().props.disabled, false);
+    assert.equal(tela.chamadas.length, 3);
+    assert.equal(tela.armazenamento.has("token"), false);
+    assert.deepEqual(tela.navegacoes, ["/"]);
   });
-  const requests = [];
-  const app = express(); app.use(express.json());
-  app.use((req, res, next) => { requests.push({ url: req.url, metodo: req.method }); next(); });
-  app.use("/usuarios", usuarios); app.use("/responsaveis", responsaveis); app.use("/criancas", criancas);
-  const servidor = app.listen(0, "127.0.0.1"); await once(servidor, "listening");
-  t.after(() => new Promise((r) => servidor.close(r)));
-  const storage = montar("Cadastro", sucesso);
-  const api = storage.apiCompilada(`http://127.0.0.1:${servidor.address().port}`);
-  const tela = await cadastroPronto(sucesso, storage.armazenamento, api);
-  await tela.enviar();
-  assert.equal(tela.erro(), undefined);
-  assert.equal(requests.length, 7);
-  assert.deepEqual(tela.navegacoes, ["/responsavel"]);
-  assert.equal(contas.length, 2); assert.equal(perfisResp.length, 1); assert.equal(perfisCrianca.length, 1);
-  assert.equal(String(perfisCrianca[0].responsavelId), String(perfisResp[0]._id));
-  assert.equal(perfisCrianca[0].permissaoAtiva, false);
-  assert.notEqual(String(perfisCrianca[0]._id), String(perfisCrianca[0].usuarioId));
-  assert.equal(tela.armazenamento.has("usuario"), false);
-  const { default: jwt } = await import("../../backend/node_modules/jsonwebtoken/index.js");
-  assert.equal(jwt.verify(tela.armazenamento.get("token"), process.env.JWT_SECRET).id, String(contas[0]._id));
-});
+
+  test("cadastro " + perfil + ": trava imediata impede dois envios antes do próximo render", async () => {
+    const resolvers = [];
+    const tela = cadastroPreenchido(perfil, (url) => url === "/usuarios"
+      ? new Promise((resolve) => resolvers.push(resolve)) : sucesso());
+    const a = tela.enviar();
+    const b = tela.enviar();
+    const chamadasPendentes = tela.chamadas.length;
+    tela.renderizar();
+    assert.equal(tela.botao().props.disabled, true);
+    const c = tela.enviar();
+    assert.equal(tela.chamadas.length, 1, "novo handler após render também respeita a trava");
+    assert.ok(tela.chamadas.every((c) => c.url === "/usuarios"));
+    resolvers.forEach((resolve) => resolve({ data: {} }));
+    await Promise.all([a, b, c]); tela.renderizar();
+    assert.equal(chamadasPendentes, 1);
+    assert.deepEqual(tela.chamadas.map((c) => c.url), ["/usuarios", "/usuarios/auth", perfil === "responsavel" ? "/responsaveis" : "/criancas"]);
+    assert.deepEqual(tela.navegacoes, ["/"]);
+    assert.equal(tela.armazenamento.has("token"), false);
+    assert.equal(tela.botao().props.disabled, false);
+    await tela.enviar();
+    assert.equal(tela.chamadas.length, 3, "cadastro confirmado não reinicia enquanto a navegação está pendente");
+  });
+
+  test("cadastro " + perfil + ": 409 apresenta mensagem backend sem redirecionar", async () => {
+    let primeira = true;
+    const tela = cadastroPreenchido(perfil, () => {
+      if (primeira) { primeira = false; throw { response: { status: 409, data: { erro: true, mensagem: "Email já cadastrado" } } }; }
+      return sucesso();
+    });
+    await tela.enviar();
+    assert.equal(tela.erro(), "Email já cadastrado");
+    assert.equal(tela.chamadas.length, 1);
+    assert.deepEqual(tela.navegacoes, []);
+    assert.equal(tela.armazenamento.has("token"), false);
+    assert.equal(tela.botao().props.disabled, false);
+    tela.campo("email", "outra-conta@example.invalid");
+    await tela.enviar();
+    assert.equal(tela.chamadas.length, 4, "nova conta somente após ação explícita corrigindo email rejeitado");
+    assert.deepEqual(tela.navegacoes, ["/"]);
+  });
+
+  for (let etapa = 1; etapa <= 3; etapa++) {
+    for (const tipo of ["rede", "timeout"]) test("cadastro " + perfil + ": " + tipo + " na etapa " + etapa + " mantém reenvio bloqueado", async () => {
+      const tela = cadastroPreenchido(perfil, (_url, _body, n) => {
+        if (n === etapa) throw tipo === "rede" ? new Error("rede fictícia") : { code: "ECONNABORTED" };
+        return sucesso();
+      });
+      await tela.enviar(); tela.renderizar();
+      assert.equal(tela.chamadas.length, etapa);
+      assert.equal(tela.botao().props.disabled, true);
+      assert.match(tela.erro(), /A conta pode ter sido criada/);
+      assert.match(tela.erro(), /Não envie novamente/);
+      assert.doesNotMatch(tela.erro(), /tente novamente/);
+      assert.equal(tela.armazenamento.has("token"), false);
+      assert.deepEqual(tela.navegacoes, []);
+      await new Promise(setImmediate);
+      assert.equal(tela.chamadas.length, etapa, "não reenvia automaticamente");
+      const mensagem = tela.erro();
+      tela.campo("email", "alterado@example.invalid");
+      selecionarTipoCadastro(tela, perfil === "crianca" ? "responsavel" : "crianca");
+      assert.equal(tela.erro(), mensagem, "editar não apaga orientação de criação incerta");
+      await tela.enviar(); await tela.enviar();
+      assert.equal(tela.chamadas.length, etapa, "editar e chamar handler não repetem uma criação incerta");
+    });
+
+    for (const tipo of ["sucesso", "401"]) test("cadastro " + perfil + ": desmontagem na etapa " + etapa + " ignora " + tipo + " tardio", async () => {
+      let resolver, rejeitar;
+      const pendente = new Promise((r, j) => { resolver = r; rejeitar = j; });
+      const tela = cadastroPreenchido(perfil, (_url, _body, n) => n === etapa ? pendente : sucesso());
+      const envio = tela.enviar(); await new Promise(setImmediate); tela.renderizar();
+      assert.equal(tela.chamadas.length, etapa);
+      const signal = tela.chamadas.at(-1).config.signal;
+      tela.desmontar();
+      assert.equal(signal.aborted, true);
+      assert.equal(tela.armazenamento.has("token"), false, "token temporário próprio é removido ao sair");
+      tela.localStorage.setItem("token", "outra-sessao-ficticia");
+      const escritas = tela.escritas.length, logs = tela.logs.length;
+      if (tipo === "sucesso") resolver(sucesso()); else rejeitar({ response: { status: 401 } });
+      await envio; await tela.enviar();
+      assert.equal(tela.chamadas.length, etapa, "não continua a cadeia nem executa callback antigo");
+      assert.deepEqual(tela.navegacoes, []);
+      assert.equal(tela.armazenamento.get("token"), "outra-sessao-ficticia");
+      assert.equal(tela.escritas.length, escritas, "não atualiza estado depois de desmontar");
+      assert.equal(tela.logs.length, logs, "catch antigo não produz efeitos");
+    });
+  }
+
+  for (const [etapa, status] of [[2, 401], [3, 400], [3, 409]]) test("cadastro " + perfil + ": HTTP " + status + " após criar usuário não libera a cadeia inteira", async () => {
+    const tela = cadastroPreenchido(perfil, (_url, _body, n) => {
+      if (n === etapa) throw { response: { status, data: { mensagem: "Falha posterior à criação" } } };
+      return sucesso();
+    });
+    await tela.enviar(); tela.renderizar();
+    assert.match(tela.erro(), /Falha posterior à criação/);
+    assert.match(tela.erro(), /A conta pode ter sido criada/);
+    assert.equal(tela.botao().props.disabled, true);
+    assert.equal(tela.armazenamento.has("token"), false);
+    await tela.enviar(); assert.equal(tela.chamadas.length, etapa);
+    assert.deepEqual(tela.navegacoes, []);
+  });
+
+  test("cadastro " + perfil + ": desmontagem não remove token de uma sessão substituta", async () => {
+    let resolver;
+    const pendente = new Promise((r) => { resolver = r; });
+    const tela = cadastroPreenchido(perfil, (_url, _body, n) => n === 3 ? pendente : sucesso());
+    const envio = tela.enviar(); await new Promise(setImmediate);
+    assert.equal(tela.chamadas.length, 3);
+    assert.equal(tela.armazenamento.get("token"), "jwt-ficticio");
+    tela.localStorage.setItem("token", "sessao-substituta-ficticia");
+    tela.desmontar();
+    assert.equal(tela.armazenamento.get("token"), "sessao-substituta-ficticia");
+    resolver(sucesso()); await envio;
+    assert.equal(tela.armazenamento.get("token"), "sessao-substituta-ficticia");
+    assert.deepEqual(tela.navegacoes, []);
+  });
+
+  test("integração HTTP local de Cadastro " + perfil + ": três requests e JWT temporário; Models em memória", async (t) => {
+    const [{ default: express }, { default: Usuario }, { default: Responsavel }, { default: Crianca },
+      { default: usuarios }, { default: responsaveis }, { default: criancas }, { default: jwt }, { default: bcrypt }] = await Promise.all([
+      import("../../backend/node_modules/express/index.js"), import("../../backend/models/usuarioModel.js"),
+      import("../../backend/models/responsavelModel.js"), import("../../backend/models/criancaModel.js"),
+      import("../../backend/routes/usuarioRoutes.js"), import("../../backend/routes/responsavelRoutes.js"),
+      import("../../backend/routes/criancaRoutes.js"), import("../../backend/node_modules/jsonwebtoken/index.js"),
+      import("../../backend/node_modules/bcrypt/bcrypt.js"),
+    ]);
+    const anterior = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = "segredo-ficticio-cadastro-http";
+    t.after(() => { if (anterior === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = anterior; });
+    const contas = [], perfisResp = [], perfisCrianca = [];
+    for (const [Model, dados] of [[Usuario, contas], [Responsavel, perfisResp], [Crianca, perfisCrianca]]) {
+      t.mock.method(Model, "create", async (body) => {
+        const doc = new Model(body); await doc.validate(); dados.push(doc); return doc;
+      });
+      t.mock.method(Model, "findOne", async (filtro) => dados.find((doc) =>
+        Object.entries(filtro).every(([k, v]) => String(doc[k]) === String(v))) ?? null);
+    }
+    t.mock.method(Usuario, "findById", async (id) => contas.find((u) => String(u._id) === String(id)) ?? null);
+    const requests = [];
+    let tokenEmitido;
+    const app = express(); app.use(express.json());
+    app.use((req, res, next) => {
+      requests.push({ url: req.url, metodo: req.method, body: req.body, authorization: req.headers.authorization });
+      if (req.url === "/usuarios/auth") {
+        const json = res.json;
+        res.json = function (body) { tokenEmitido = body?.token; return json.call(this, body); };
+      }
+      next();
+    });
+    app.use("/usuarios", usuarios); app.use("/responsaveis", responsaveis); app.use("/criancas", criancas);
+    const servidor = app.listen(0, "127.0.0.1"); await once(servidor, "listening");
+    t.after(() => new Promise((resolve) => servidor.close(resolve)));
+    const storage = montar("Cadastro", sucesso);
+    const api = storage.apiCompilada("http://127.0.0.1:" + servidor.address().port);
+    const tela = cadastroPreenchido(perfil, sucesso, storage.armazenamento, api);
+    const primeiro = tela.enviar(), duplicado = tela.enviar();
+    await Promise.all([primeiro, duplicado]);
+    assert.equal(tela.erro(), undefined);
+    assert.deepEqual(requests.map((r) => [r.metodo, r.url]), [
+      ["POST", "/usuarios"], ["POST", "/usuarios/auth"], ["POST", perfil === "responsavel" ? "/responsaveis" : "/criancas"],
+    ]);
+    assert.deepEqual(requests.map((r) => r.body), [
+      { nome: "Teste", email: perfil + "@example.invalid", senha: "senha fictícia", perfil },
+      { email: perfil + "@example.invalid", senha: "senha fictícia" }, {},
+    ]);
+    assert.equal(requests[0].authorization, undefined);
+    assert.equal(requests[1].authorization, undefined);
+    assert.equal(typeof tokenEmitido, "string");
+    assert.equal(requests[2].authorization, "Bearer " + tokenEmitido);
+    assert.equal(contas.length, 1);
+    const identidade = jwt.verify(tokenEmitido, process.env.JWT_SECRET);
+    assert.equal(identidade.id, String(contas[0]._id));
+    assert.equal(identidade.perfil, perfil);
+    assert.equal(contas[0].perfil, perfil);
+    assert.equal(contas[0].email, perfil + "@example.invalid");
+    assert.notEqual(contas[0].senha, "senha fictícia");
+    assert.equal(await bcrypt.compare("senha fictícia", contas[0].senha), true);
+    assert.equal(perfisResp.length, perfil === "responsavel" ? 1 : 0);
+    assert.equal(perfisCrianca.length, perfil === "crianca" ? 1 : 0);
+    const registro = perfil === "responsavel" ? perfisResp[0] : perfisCrianca[0];
+    assert.equal(String(registro.usuarioId), String(contas[0]._id));
+    if (perfil === "crianca") {
+      assert.equal(registro.responsavelId, null);
+      assert.equal(registro.permissaoAtiva, false);
+      assert.notEqual(String(registro._id), String(registro.usuarioId));
+    }
+    assert.equal(tela.armazenamento.has("token"), false);
+    assert.equal(tela.armazenamento.has("usuario"), false);
+    assert.deepEqual(tela.navegacoes, ["/"]);
+  });
+}

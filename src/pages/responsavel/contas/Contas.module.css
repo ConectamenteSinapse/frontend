@@ -141,6 +141,24 @@
   text-align: center;
 }
 
+.rodape { margin-top: 28px; padding-top: 20px; border-top: 1px solid #c9def5; text-align: center; }
+.sairButton {
+  min-height: 48px;
+  width: 100%;
+  max-width: 320px;
+  padding: 12px 20px;
+  border: 2px solid #0758c9;
+  border-radius: 14px;
+  background: #e3f2fd;
+  color: #0755a9;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sairButton:hover { background: #cfe7fd; }
+.sairButton:focus-visible { outline: 3px solid #0758c9; outline-offset: 4px; }
+.sairButton:disabled { cursor: default; opacity: 0.7; }
+
 @media (max-width: 600px) {
   .pagina {
     padding: 25px 12px;
