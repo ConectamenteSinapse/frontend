@@ -15,7 +15,7 @@
 /* CABEÇALHO TOPO: seta à esquerda, título no centro, logo à direita */
 .cabecalhoTopo {
   width: 100%;
-  max-width: 1080px;
+  max-width: 1600px;
   display: grid;
   grid-template-columns: 1fr auto 1fr; /* pontas com a mesma largura = título sempre centralizado */
   align-items: center;
@@ -75,18 +75,22 @@
 /* PAINEL BRANCO PRINCIPAL */
 .painelPrincipal {
   width: 100%;
-  max-width: 1080px;
+  max-width: 1600px;
   background-color: #ffffff;
   border-radius: 28px;
   padding: 24px;
   box-sizing: border-box;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-areas: "perfil personagem" "jornada jornada";
   gap: 24px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
 }
 
 /* COLUNA ESQUERDA */
 .colunaEsquerda {
+  grid-area: perfil;
+  min-width: 0;
   flex: 1.6;
   display: flex;
   flex-direction: column;
@@ -122,10 +126,12 @@
 }
 
 .infoUsuario {
+  min-width: 0;
   flex: 1;
 }
 
 .nomeUsuario {
+  overflow-wrap: anywhere;
   margin: 0 0 6px 0;
   font-size: 1.6rem;
   font-weight: 800;
@@ -133,6 +139,7 @@
 }
 
 .linhaBadges {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -182,6 +189,8 @@
 }
 
 .cabecalhoEstrelas {
+  flex-wrap: wrap;
+  gap: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -242,12 +251,17 @@
 
 /* CARD CÔMODOS */
 .cardComodos {
+  container: jornada / inline-size;
+  grid-area: jornada;
+  min-width: 0;
   background-color: #f0f7ff;
   border-radius: 20px;
   padding: 18px 20px;
 }
 
 .cabecalhoComodos {
+  flex-wrap: wrap;
+  gap: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -275,74 +289,161 @@
 
 .gridComodos {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
 }
 
+/* Largura útil da jornada, descontados os paddings do painel e da seção.
+   Quatro cartões a partir de 1120px: (1120 - 3 * 16) / 4 = 268px por cartão. */
+@container jornada (min-width: 600px) {
+  .gridComodos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container jornada (min-width: 1120px) {
+  .gridComodos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.selecaoPartida {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  color: #475569;
+}
+.selecaoPartida label { font-weight: 700; }
+.selecaoPartida p { margin: 2px 0; }
+.selecaoPartida select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  color: #0d1b2a;
+  background: white;
+  font: inherit;
+}
 .itemComodo {
-  border-radius: 16px;
-  padding: 12px 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 16px;
+  border: 1px solid #c6ddf5;
+  border-radius: 20px;
+  background: #fff;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  text-align: center;
-  min-height: 110px;
+  gap: 12px;
 }
-
 .imagemComodoContainer {
-  width: 42px;
-  height: 42px;
+  width: 100%;
+  height: 148px;
+  border-radius: 14px;
+  background: #edf6ff;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-
 .imgComodo {
-  max-width: 100%;
-  max-height: 100%;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
-
-.nomeComodo {
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #0d1b2a;
-  margin: 4px 0;
+.imagemIndisponivel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #526782;
 }
-
-.statusBadge {
+.cabecalhoComodo {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.65rem;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nomeComodo {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #08254b;
+}
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
   font-weight: 700;
 }
-
-/* ESTADOS DOS CÔMODOS */
-.concluido {
-  background-color: #e8f5e9;
+.concluido { background: #e8f5e9; color: #23602a; }
+.andamento { background: #fff4d6; color: #82510a; }
+.nao_iniciado { background: #edf2f7; color: #475569; }
+.emDesenvolvimento {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #526782;
 }
-.concluido .statusBadge {
-  color: #2e7d32;
+.progressoDificuldades {
+  min-width: 0;
+  color: #334155;
 }
-
-.andamento {
-  background-color: #fff8e1;
+.progressoDificuldades dl { margin: 0; }
+.progressoDificuldades dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 0;
+  font-size: 0.95rem;
 }
-.andamento .statusBadge {
-  color: #ed6c02;
+.progressoDificuldades dt { font-weight: 700; }
+.progressoDificuldades dd {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-
-.nao_iniciado {
-  background-color: #e2e8f0;
+.progressoDificuldades svg, .statusBadge svg { flex-shrink: 0; }
+.avisoJornada { font-size: 0.85rem; color: #526782; line-height: 1.5; }
+.botaoJornada {
+  justify-self: start;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  padding: 12px 16px;
+  border: 1px solid #b7d7fa;
+  background: #e3f2fd;
+  color: #084baf;
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 1rem;
 }
-.nao_iniciado .statusBadge {
-  color: #64748b;
+.botaoJornada svg { flex-shrink: 0; }
+.botaoJornada:hover { background: #cfe8fc; }
+.botaoJornada:focus-visible, .selecaoPartida select:focus-visible {
+  outline: 3px solid #0052cc;
+  outline-offset: 3px;
 }
 
 /* COLUNA DIREITA */
 .colunaDireita {
+  grid-area: personagem;
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -351,6 +452,8 @@
 
 /* CARD PERSONAGEM */
 .cardPersonagem {
+  min-width: 0;
+  overflow-wrap: anywhere;
   background: linear-gradient(180deg, #b3e5fc 0%, #e1f5fe 100%);
   border-radius: 20px;
   padding: 16px;
@@ -524,3 +627,73 @@
   font-size: 13px;
   color: #526782;
 }
+
+/* Os blocos superiores se empilham em telas pequenas; a grade depende do contêiner. */
+@media (max-width: 1000px) {
+  .painelPrincipal { grid-template-columns: minmax(0, 1fr); grid-template-areas: "perfil" "personagem" "jornada"; }
+}
+@media (max-width: 600px) {
+  .pagina { padding: 12px; }
+  .painelPrincipal { padding: 12px; border-radius: 20px; }
+  .cardComodos { padding: 16px 12px; }
+  .cardUsuario { flex-wrap: wrap; padding: 14px; gap: 12px; }
+  .infoUsuario { min-width: 0; flex: 1 1 160px; }
+  .botaoEditar { margin-left: auto; }
+  .nomeUsuario { font-size: 1.3rem; overflow-wrap: anywhere; }
+  .tituloTopo { font-size: 1.8rem; }
+  .logo { height: 40px; max-width: 95px; }
+  .tituloEstrelas h3 { font-size: 1.1rem; }
+  .cabecalhoTopo { min-height: 64px; }
+}
+
+.nomePersonagemPerfil { overflow-wrap: anywhere; margin: 8px 0; }
+.modalEdicao {
+  margin: auto;
+  box-sizing: border-box;
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  border: 2px solid #90caf9;
+  border-radius: 24px;
+  padding: 24px;
+  color: #12345b;
+  background: white;
+}
+.modalEdicao::backdrop { background: rgba(0, 20, 50, 0.75); }
+.modalEdicao h2 { margin-top: 0; }
+.modalEdicao p { line-height: 1.5; overflow-wrap: anywhere; }
+.modalEdicao input:not([type="radio"]) { box-sizing: border-box; width: 100%; min-height: 44px; font: inherit; margin: 8px 0 16px; padding: 8px; }
+.modalEdicao fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.avataresEdicao { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.opcaoAvatar { display: flex; flex-direction: column; align-items: center; gap: 8px; border: 2px solid #d8e9f8; border-radius: 12px; padding: 10px; cursor: pointer; }
+.opcaoAvatar:has(input:checked) { border-color: #0052cc; background: #e3f2fd; }
+.opcaoAvatar img { width: 100%; height: 110px; object-fit: contain; }
+.opcaoAvatar input { width: 20px; height: 20px; }
+.acoesEdicao { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+.modalEdicao button { min-height: 44px; }
+.botaoEditar:focus-visible, .modalEdicao input:focus-visible { outline: 3px solid #0052cc; outline-offset: 3px; }
+.botaoEditar:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 600px) { .avataresEdicao { grid-template-columns: repeat(2, minmax(0, 1fr)); } .modalEdicao { padding: 16px; } }
+
+/* O status tem uma linha própria para continuar legível nos quatro cartões. */
+.progressoDificuldades dl > .linhaDificuldadeJogavel {
+  display: block;
+}
+.linhaDificuldadeJogavel dt { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.linhaDificuldadeJogavel dd { margin-top: 6px; overflow-wrap: anywhere; }
+.botaoJogar {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 2px solid #0052cc;
+  border-radius: 12px;
+  background: #0052cc;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.botaoJogar:hover { background: #003e9b; }
+.botaoJogar:disabled { border-color: #cbd5e1; background: #e2e8f0; color: #526174; cursor: not-allowed; }
+.botaoJogar:focus-visible { outline: 3px solid #0052cc; outline-offset: 3px; }
+.avisoSelecao { background: #edf6ff; border-radius: 12px; padding: 12px; margin: 12px 0; overflow-wrap: anywhere; }
+.avisoSelecao p { margin: 0 0 8px; }

@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { Minus } from "lucide-react";
 import styles from "../styles/JogosSalvos.module.css";
 import api from "../services/api";
+import Link from "next/link";
 
 export default function JogosSalvos() {
   const router = useRouter();
@@ -24,6 +25,12 @@ export default function JogosSalvos() {
           Array.isArray(resposta.data) ? resposta.data : []
         );
       } catch (error) {
+        if (error.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          router.replace("/");
+          return;
+        }
         console.error(
           "Erro ao carregar jogos:",
           error.response?.data || error.message
@@ -39,7 +46,7 @@ export default function JogosSalvos() {
     };
 
     carregarJogos();
-  }, []);
+  }, [router]);
 
   const handleAbrirModalExcluir = (e, jogo) => {
     e.stopPropagation();
@@ -85,11 +92,26 @@ export default function JogosSalvos() {
   };
 
   const handleSelecionarJogo = (jogo) => {
-    console.log("Jogo selecionado:", jogo);
+    if (typeof jogo?._id !== "string" || !jogo._id.trim()) {
+      setErro("Não foi possível abrir a partida: identificador ausente.");
+      return;
+    }
 
-    // A navegação para o jogo será integrada quando a tela
-    // de carregamento da partida estiver definida.
-    router.push("/menu");
+    setErro("");
+    router.push({
+      pathname: "/jogo/quarto",
+      query: { jogoSalvoId: jogo._id },
+    });
+  };
+
+  const handleVerPerfil = (event, jogo) => {
+    event.stopPropagation();
+    if (typeof jogo?._id !== "string" || !/^[a-f0-9]{24}$/i.test(jogo._id)) {
+      setErro("Não foi possível consultar a jornada: identificador inválido.");
+      return;
+    }
+    setErro("");
+    router.push({ pathname: "/perfil", query: { jogoSalvoId: jogo._id } });
   };
 
   if (carregando) {
@@ -156,6 +178,16 @@ export default function JogosSalvos() {
                   <span className={styles.tituloJogo}>
                     {jogo.nomeJogo || "Jogo salvo"}
                   </span>
+                  <div className={styles.acoesJogo}>
+                    <button type="button" className={styles.botaoContinuar}
+                      onClick={(event) => { event.stopPropagation(); handleSelecionarJogo(jogo); }}>
+                      Continuar jogo
+                    </button>
+                    <button type="button" className={styles.botaoPerfil}
+                      onClick={(event) => handleVerPerfil(event, jogo)}>
+                      Ver perfil
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -173,6 +205,7 @@ export default function JogosSalvos() {
             !erro && (
               <p className={styles.mensagemVazio}>
                 Nenhum jogo salvo encontrado.
+                {" "}<Link href="/escolher-personagem">Criar novo jogo</Link>
               </p>
             )
           )}

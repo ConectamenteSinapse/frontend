@@ -133,3 +133,25 @@
   justify-content: center;
   flex-shrink: 0;
 }
+
+.sairButton {
+  width: 100%;
+  max-width: 580px;
+  min-height: 48px;
+  margin-top: 24px;
+  padding: 12px 20px;
+  border: 2px solid #fff;
+  border-radius: 16px;
+  background: #fff;
+  color: #0052cc;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.sairButton:hover { background: #e3f2fd; }
+.sairButton:focus-visible { outline: 3px solid #ffb703; outline-offset: 4px; }
+.sairButton:disabled { cursor: default; opacity: 0.7; }

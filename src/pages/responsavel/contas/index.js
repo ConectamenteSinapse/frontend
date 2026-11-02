@@ -2,7 +2,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import api from "../../../services/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import styles from "./Contas.module.css";
 
@@ -11,26 +11,40 @@ export default function Contas() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState(null);
   const [consultaRealizada, setConsultaRealizada] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+  const saidaRef = useRef(false);
   const router = useRouter();
 
+  function sairDaConta() {
+    if (saidaRef.current) return;
+    saidaRef.current = true;
+    setSaindo(true);
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    router.replace("/");
+  }
+
   useEffect(() => {
+    if (saidaRef.current) return;
     let consultaAtiva = true;
 
     async function buscarCriancas() {
+      setSaindo(false);
       setCarregando(true);
       setErro(null);
 
       try {
         const resposta = await api.get("/responsaveis/minhas-criancas");
 
-        if (!consultaAtiva) return;
+        if (!consultaAtiva || saidaRef.current) return;
         setContas(resposta.data);
       } catch (erro) {
-        if (!consultaAtiva) return;
+        if (!consultaAtiva || saidaRef.current) return;
 
         const status = erro.response?.status;
 
         if (status === 401) {
+          setSaindo(true);
           localStorage.removeItem("token");
           localStorage.removeItem("usuario");
           setContas([]);
@@ -48,7 +62,7 @@ export default function Contas() {
         setErro("Não foi possível carregar as contas.");
         console.error("Erro ao buscar crianças:", erro);
       } finally {
-        if (consultaAtiva) {
+        if (consultaAtiva && !saidaRef.current) {
           setCarregando(false);
           setConsultaRealizada(true);
         }
@@ -60,6 +74,7 @@ export default function Contas() {
     if (token?.trim()) {
       buscarCriancas();
     } else {
+      setSaindo(true);
       setCarregando(false);
       setContas([]);
       setConsultaRealizada(true);
@@ -70,6 +85,8 @@ export default function Contas() {
       consultaAtiva = false;
     };
   }, [router]);
+
+  if (saindo) return <p role="status">Redirecionando para o login...</p>;
 
   return (
     <>
@@ -149,6 +166,11 @@ export default function Contas() {
               Você não possui contas para monitorar.
             </p>
           )}
+          <footer className={styles.rodape}>
+            <button type="button" className={styles.sairButton} onClick={sairDaConta} disabled={saindo}>
+              Sair da Conta
+            </button>
+          </footer>
         </section>
       </main>
     </>
