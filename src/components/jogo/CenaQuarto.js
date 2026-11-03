@@ -46,7 +46,7 @@ function roupaConcluida(progresso, jogoSalvoId, dificuldade) {
 
 export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSalvoId, sessaoId, dificuldade,
   onAvancarDificuldade, avancandoDificuldade = false, avancoIncerto = false,
-  erroAvanco, onConferirDificuldade, onSairDoJogo } = {}) {
+  erroAvanco, onConferirDificuldade, onSairDoJogo, audioBloqueado = false } = {}) {
   const personagemDaPartida = personagem ?? jogoSalvo?.perfilJogoId;
   const avatarDaPartida = personagemDaPartida?.imagemAvatar;
   // Somente o avatar original possui sprite; os demais usam sua ilustração real.
@@ -119,6 +119,21 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
   
   const orientacaoRef = useRef(null);
   const [modalAtivo, setModalAtivo] = useState(null); 
+  const audioAtualRef = useRef(null);
+  const pararAudio = useCallback(() => {
+    const som = audioAtualRef.current;
+    audioAtualRef.current = null;
+    if (som) {
+      som.pause();
+      som.removeAttribute("src");
+      som.load();
+    }
+  }, []);
+  // A página mantém a cena montada enquanto encerra ou bloqueia a sessão.
+  useEffect(() => {
+    if (audioBloqueado) pararAudio();
+    return pararAudio;
+  }, [modalAtivo, chaveEstrelas, audioBloqueado, pararAudio]);
   const [modalFimDeFase, setModalFimDeFase] = useState(false);
   const mostrandoFimPratica = modalFimDeFase === "pratica";
   
@@ -705,8 +720,12 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
   }, [modalAtivo, contextoValido, jogoSalvoId, dificuldade, sessaoId, perfilJogoId, chaveRoupa, chaveConquistaRoupa, chavePraticaRoupa, praticandoTarefas, rodadaRoupa, chaveEstrelas, invalidarEstrelas]);
 
   const tocarAudio = (caminhoAudio) => {
+    pararAudio();
+    if (audioBloqueado || typeof caminhoAudio !== "string" || !caminhoAudio.trim()) return;
     try {
+      // Caminhos de public são resolvidos pelo Next, sem usar a base do Axios.
       const som = new Audio(caminhoAudio);
+      audioAtualRef.current = som;
       som.play().catch((erro) => console.log("Áudio bloqueado:", erro));
     } catch (e) {
       console.log("Erro ao carregar áudio:", e);
@@ -757,7 +776,6 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
       setModalAtivo("cama");
       setFeedback("");
       setTipoFeedback("");
-      tocarAudio("/audio/pergunta-cama.mp3");
     }
   };
 
@@ -787,7 +805,6 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
       setModalAtivo("janela");
       setFeedback("");
       setTipoFeedback("");
-      tocarAudio("/audio/pergunta-janela.mp3");
     }
   };
 
@@ -817,7 +834,6 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
       setModalAtivo("guardaRoupa");
       setFeedback("");
       setTipoFeedback("");
-      tocarAudio("/audio/pergunta-guardaroupa.mp3");
     }
   };
 
@@ -1460,7 +1476,8 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
             </button>
 
             <button
-              onClick={() => tocarAudio("/audio/pergunta-cama.mp3")}
+              onClick={() => tocarAudio(tarefaCama?.audioEnunciado)}
+              disabled={!tarefaCama?.audioEnunciado}
               className={styles.botaoAudioModal}
               title="Ouvir pergunta"
               aria-label="Ouvir pergunta"
@@ -1504,6 +1521,7 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
                     texto={resposta.texto}
                     imagem={resposta.imagem}
                     audio={resposta.audio}
+                    onReproduzirAudio={tocarAudio}
                     disabled={enviandoCama}
                     onSelecionar={() => handleEscolherOpcaoCama(resposta._id, rodadaCama)}
                   />
@@ -1530,7 +1548,8 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
             </button>
 
             <button
-              onClick={() => tocarAudio("/audio/pergunta-janela.mp3")}
+              onClick={() => tocarAudio(tarefaCortina?.audioEnunciado)}
+              disabled={!tarefaCortina?.audioEnunciado}
               className={styles.botaoAudioModal}
               title="Ouvir pergunta"
               aria-label="Ouvir pergunta"
@@ -1574,6 +1593,7 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
                     texto={resposta.texto}
                     imagem={resposta.imagem}
                     audio={resposta.audio}
+                    onReproduzirAudio={tocarAudio}
                     disabled={enviandoCortina}
                     onSelecionar={() => handleEscolherOpcaoJanela(resposta._id, rodadaCortina)}
                   />
@@ -1600,7 +1620,8 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
             </button>
 
             <button
-              onClick={() => tocarAudio("/audio/pergunta-guardaroupa.mp3")}
+              onClick={() => tocarAudio(tarefaRoupa?.audioEnunciado)}
+              disabled={!tarefaRoupa?.audioEnunciado}
               className={styles.botaoAudioModal}
               title="Ouvir pergunta"
               aria-label="Ouvir pergunta"
@@ -1644,6 +1665,7 @@ export default function CenaQuarto({ jogoSalvo, personagem, perfilJogoId, jogoSa
                     texto={resposta.texto}
                     imagem={resposta.imagem}
                     audio={resposta.audio}
+                    onReproduzirAudio={tocarAudio}
                     disabled={enviandoRoupa}
                     onSelecionar={() => handleEscolherOpcaoGuardaRoupa(resposta._id, rodadaRoupa)}
                   />
