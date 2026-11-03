@@ -4,6 +4,7 @@ export default function RespostaCard({
   texto,
   imagem,
   audio,
+  onReproduzirAudio,
   onSelecionar,
   disabled = false,
 }) {
@@ -11,6 +12,10 @@ export default function RespostaCard({
     event.stopPropagation();
 
     if (!audio) return;
+    if (onReproduzirAudio) {
+      onReproduzirAudio(audio);
+      return;
+    }
 
     const som = new Audio(audio);
     som.play().catch((erro) => {

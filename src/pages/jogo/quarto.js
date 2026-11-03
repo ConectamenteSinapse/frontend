@@ -522,6 +522,7 @@ export default function Quarto() {
           onConferirDificuldade={conferirDificuldade}
           onSairDoJogo={(destino) => controleSessaoRef.current?.sair(destino)}
           sessaoId={inicio.sessaoId}
+          audioBloqueado={bloqueada}
           expiraEm={acompanhamento?.inicio === inicio ? acompanhamento.expiraEm : inicio.expiraEm}
         />
       </div>

@@ -450,8 +450,10 @@ test("saída explícita confirma encerramento sem expiraEm e interrompe toda ren
 test("saída impede cliques duplicados e ignora heartbeat pendente", async () => {
   const heartbeat = diferida(), encerramento = diferida();
   const t = await entrar({ patch: (url) => url.endsWith("/heartbeat") ? heartbeat.promise : encerramento.promise });
+  assert.equal(t.cena().props.audioBloqueado, false);
   await t.avancar(10000);
   const primeira = t.sair(), segunda = t.sair(); t.render();
+  assert.equal(t.cena().props.audioBloqueado, true, "interrompe áudio antes de confirmar a saída");
   assert.equal(t.patches().length, 2);
   assert.equal(t.patches()[0].config.signal.aborted, true);
   assert.equal(t.timers.size, 0);
@@ -466,6 +468,7 @@ test("saída impede cliques duplicados e ignora heartbeat pendente", async () =>
 test("falha ao sair mantém bloqueio sem timers e não anuncia encerramento confirmado", async () => {
   const t = await entrar({ patch: async () => { throw new Error("rede simulada"); } });
   await t.sair(); t.render();
+  assert.equal(t.cena().props.audioBloqueado, true);
   assert.match(t.texto(), /Não foi possível confirmar a saída/);
   assert.equal(t.navegacoes.length, 0); assert.equal(t.timers.size, 0);
   assert.ok(t.nos().some((n) => n.props.inert === true));

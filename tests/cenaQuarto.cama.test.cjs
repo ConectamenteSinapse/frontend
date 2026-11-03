@@ -9,26 +9,26 @@ const babel = require("next/dist/compiled/babel/core");
 const comodoId = "6aac3a3ea0d0e3c33530c5d2";
 const tarefaId = "6aac3c29bee9f041e4728a8f";
 const corretaId = "6aac3dc5463fb5f785522ad6";
-const tarefa = { _id: tarefaId, comodoId, enunciado: "Enunciado recebido da API" };
+const tarefa = { _id: tarefaId, comodoId, audioEnunciado: "/audios/quarto/tarefa/o-que-devemos-fazer-com-a-cama.mp3", enunciado: "Enunciado recebido da API" };
 // A correta vem primeiro para detectar qualquer dependência da segunda posição.
 const respostas = [corretaId, "6aac3dc5463fb5f785522ad7", "6aac3dc5463fb5f785522ad8", "6aac3dc5463fb5f785522ad9"].map((id, i) => ({
   _id: id, tarefaId, texto: `Alternativa API ${i}`,
-  imagem: `/imagem-api-${i}.png`, audio: i ? null : "/audio-api.mp3", ordem: i + 1,
+  imagem: `/imagem-api-${i}.png`, audio: `/audios/quarto/resposta/${["arrumar-a-cama", "voltar-a-dormir", "deitar-na-cama", "usar-o-celular"][i]}.mp3`, ordem: i + 1,
 }));
 const tarefaCortinaId = "6aac3c29bee9f041e4728a90";
-const tarefaCortina = { _id: tarefaCortinaId, comodoId, enunciado: "Enunciado da cortina recebido da API" };
+const tarefaCortina = { _id: tarefaCortinaId, comodoId, audioEnunciado: "/audios/quarto/tarefa/o-que-devemos-fazer-com-a-cortina.mp3", enunciado: "Enunciado da cortina recebido da API" };
 const respostasCortina = ["6aac3dc5463fb5f785522ad9", "6aac3dc5463fb5f785522ada", "6aac3dc5463fb5f785522adb", "6aac3dc5463fb5f785522adc"].map((_id, i) => ({
   _id, tarefaId: tarefaCortinaId, texto: `Cortina API ${i + 1}`, ordem: i + 1,
-  imagem: `/images/quarto/respostas/cortina-${i + 1}.png`, audio: i ? null : "/audio-cortina.mp3",
+  imagem: `/images/quarto/respostas/cortina-${i + 1}.png`, audio: `/audios/quarto/resposta/${["deixar-a-cortina-fechada", "puxar-a-cortina", "abrir-a-cortina", "usar-o-controle"][i]}.mp3`,
 }));
 // Gabarito somente do servidor simulado; a terceira alternativa detecta índices fixos.
 const corretaCortinaId = respostasCortina[2]._id;
 const tarefaRoupaId = "6aac3c29bee9f041e4728a91";
-const tarefaRoupa = { _id: tarefaRoupaId, comodoId, enunciado: "Enunciado da roupa recebido da API" };
+const tarefaRoupa = { _id: tarefaRoupaId, comodoId, audioEnunciado: "/audios/quarto/tarefa/o-que-devemos-fazer-com-a-roupa-ao-acordar.mp3", enunciado: "Enunciado da roupa recebido da API" };
 const respostasRoupa = ["6aac3dc5463fb5f785522add", "6aac3dc5463fb5f785522ade", "6aac3dc5463fb5f785522adf", "6aac3dc5463fb5f785522ae0"].map((_id, i) => ({
   _id, tarefaId: tarefaRoupaId,
   texto: ["Ficar na cama", "Continuar com a mesma roupa", "Trocar de roupa", "Colocar camiseta"][i],
-  ordem: i + 1, imagem: `/images/quarto/respostas/roupa-${i + 1}.png`, audio: i ? null : "/audio-roupa.mp3",
+  ordem: i + 1, imagem: `/images/quarto/respostas/roupa-${i + 1}.png`, audio: `/audios/quarto/resposta/${["ficar-na-cama", "continuar-com-a-mesma-roupa", "trocar-de-roupa", "colocar-camiseta"][i]}.mp3`,
 }));
 const corretaRoupaId = respostasRoupa[2]._id; // Exclusivo do servidor simulado.
 const arquivo = path.resolve(__dirname, "../src/components/jogo/CenaQuarto.js");
@@ -57,7 +57,7 @@ function montar(responder = (url) => ({ data: url.includes(tarefaRoupaId)
   : url.includes(tarefaCortinaId)
   ? url.endsWith("/respostas") ? respostasCortina : tarefaCortina
   : url.endsWith("/respostas") ? respostas : tarefa }), token = "sessao-simulada", opcoes = {}) {
-  const estados = [], refs = [], callbacks = [], efeitos = [], pendentes = [], chamadas = [], envios = [], sons = [], timers = new Map(), eventos = new Map();
+  const estados = [], refs = [], callbacks = [], efeitos = [], pendentes = [], chamadas = [], envios = [], sons = [], players = [], timers = new Map(), eventos = new Map();
   const armazenamento = new Map(token === null ? [] : [["token", token], ["usuario", "usuario-simulado"]]);
   const localStorage = { getItem: (k) => armazenamento.get(k) ?? null, removeItem: (k) => armazenamento.delete(k) };
   const pendencias = opcoes.pendencias ?? new Map();
@@ -71,7 +71,14 @@ function montar(responder = (url) => ({ data: url.includes(tarefaRoupaId)
     window: { addEventListener: (k, fn) => eventos.set(k, fn), removeEventListener: (k, fn) => { if (eventos.get(k) === fn) eventos.delete(k); } },
     setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; },
     clearTimeout: (id) => timers.delete(id),
-    Audio: function (url) { sons.push(url); this.play = () => Promise.resolve(); },
+    Audio: function (url) {
+      if (opcoes.audioConstrutorFalha) throw new Error("Audio indispon?vel");
+      sons.push(url); players.push(this); this.url = url; this.pausas = 0; this.liberado = false;
+      this.pause = () => { this.pausas++; };
+      this.removeAttribute = (atributo) => { assert.equal(atributo, "src"); this.liberado = true; };
+      this.load = () => {};
+      this.play = () => opcoes.audioPlay ? opcoes.audioPlay() : Promise.resolve();
+    },
     alert: () => {}, console: { log: () => {}, error: () => {} },
     require(id) {
       if (id === "react") return {
@@ -115,7 +122,7 @@ function montar(responder = (url) => ({ data: url.includes(tarefaRoupaId)
   function nos(n) { if (arguments.length === 0) n = arvore; if (Array.isArray(n)) return n.flatMap(nos); return n?.props ? [n, ...nos(n.props.children)] : []; }
   function texto(n) { if (arguments.length === 0) n = arvore; if (Array.isArray(n)) return n.map(texto).join(" "); return n?.props ? texto(n.props.children) : typeof n === "string" || typeof n === "number" ? String(n) : ""; }
   const tela = {
-    chamadas, envios, sons, timers, armazenamento, pendencias,
+    chamadas, envios, sons, players, timers, armazenamento, pendencias,
     render() { indiceEstado = 0; indiceRef = 0; indiceCallback = 0; indiceEfeito = 0; arvore = contexto.exports.default(props); while (pendentes.length) pendentes.shift()(); return tela; },
     trocarProps(novas) { props = { ...props, ...novas }; return tela.render(); },
     nos, texto,
@@ -994,7 +1001,8 @@ test("setas/WASD e áudio da pergunta preservados; fechar loading libera movimen
   const inicio = tela.personagem(); tela.teclado("d"); assert.notEqual(tela.personagem(), inicio);
   tela.abrir(); const parado = tela.personagem(); tela.teclado("ArrowRight"); assert.equal(tela.personagem(), parado);
   const audio = tela.nos().find((n) => n.props.className === "botaoAudioModal"); audio.props.onClick();
-  assert.equal(tela.sons.filter((s) => s === "/audio/pergunta-cama.mp3").length, 2);
+  assert.equal(audio.props.disabled, true);
+  assert.equal(tela.sons.length, 0);
   tela.fechar(); tela.teclado("a"); assert.notEqual(tela.personagem(), parado);
   tela.desmontar();
 });
@@ -1421,7 +1429,7 @@ test("cortina: consulta real de tarefa e quatro cards com IDs, texto, imagens e 
   });
   const parado = t.personagem(); t.teclado("d"); assert.equal(t.personagem(), parado);
   t.nos().find((n) => n.props.className === "botaoAudioModal").props.onClick();
-  assert.ok(t.sons.includes("/audio/pergunta-janela.mp3"));
+  assert.deepEqual(t.sons, [tarefaCortina.audioEnunciado]);
   t.fechar(); t.teclado("d"); assert.notEqual(t.personagem(), parado);
   assert.equal(t.envios.length, 0); t.desmontar();
 });
@@ -1700,7 +1708,7 @@ test("roupa: consulta real de tarefa e quatro cards com IDs, texto, imagens e á
   });
   const parado = t.personagem(); t.teclado("d"); assert.equal(t.personagem(), parado);
   t.nos().find((n) => n.props.className === "botaoAudioModal").props.onClick();
-  assert.ok(t.sons.includes("/audio/pergunta-guardaroupa.mp3"));
+  assert.deepEqual(t.sons, [tarefaRoupa.audioEnunciado]);
   t.fechar(); t.teclado("d"); assert.notEqual(t.personagem(), parado);
   assert.equal(t.envios.length, 0); t.desmontar();
 });
@@ -2502,4 +2510,101 @@ for(const tipo of ["201 tardio","troca de dificuldade","troca de partida"])test(
   if(tipo==="201 tardio")t.fechar();else t.trocarProps(tipo==="troca de dificuldade"?{dificuldade:"medio"}:{jogoSalvoId:"6aac3c29bee9f041e4728a88"});
   d.resolve(retorno(true));await envio;await t.concluir();t.avancar(1500);t.avancar(1000);
   assert.doesNotMatch(t.texto(),/Rodada de prática concluída!/);assert.equal(t.envios.length,3);assert.equal(t.pendencias.size,1);t.desmontar();
+});
+
+// Executa também o handler do RespostaCard real, além do callback recebido da cena.
+function renderizarCardAudio(props) {
+  const arquivo = path.resolve(__dirname, "../src/components/jogo/RespostaCard.js");
+  const { code } = babel.transformSync(fs.readFileSync(arquivo, "utf8"), {
+    filename: arquivo, babelrc: false, configFile: false,
+    presets: [[require("next/dist/compiled/babel/preset-react"), { runtime: "automatic" }]],
+    plugins: [require("next/dist/compiled/babel/plugin-transform-modules-commonjs")],
+  });
+  const contexto = { exports: {}, require(id) {
+    if (id === "react/jsx-runtime") return require(id);
+    if (id === "lucide-react") return { Volume2() {} };
+    if (id.endsWith(".css")) return { __esModule: true, default: {} };
+    throw new Error(id);
+  } };
+  vm.runInNewContext(code, contexto);
+  return contexto.exports.default(props).props.children[1];
+}
+
+for (const [nome, abrir, pergunta, alternativas] of [
+  ["cama", "abrir", tarefa, respostas],
+  ["cortina", "abrirCortina", tarefaCortina, respostasCortina],
+  ["roupa", "abrirRoupa", tarefaRoupa, respostasRoupa],
+]) test(`áudio: ${nome} usa enunciado e quatro alternativas da API sem autoplay ou POST`, async () => {
+  const t = montar(undefined, undefined, { concluidasIniciais:
+    nome === "roupa" ? [tarefaId, tarefaCortinaId] : nome === "cortina" ? [tarefaId] : [] });
+  await t.concluir(); t[abrir](); await t.concluir();
+  assert.equal(t.sons.length, 0);
+  const amarelo = t.nos().find((n) => n.props.className === "botaoAudioModal");
+  assert.equal(amarelo.props.disabled, false); amarelo.props.onClick();
+  assert.equal(t.sons[0], pergunta.audioEnunciado);
+  for (let i = 0; i < 4; i++) {
+    let propagacoes = 0;
+    const azul = renderizarCardAudio(t.cards()[i].props);
+    azul.props.onClick({ stopPropagation() { propagacoes++; } });
+    assert.equal(propagacoes, 1);
+    assert.equal(t.sons[i + 1], alternativas[i].audio);
+    assert.equal(t.players[i].pausas, 1);
+    assert.equal(t.players[i].liberado, true);
+    assert.equal(t.players[i + 1].pausas, 0);
+  }
+  assert.equal(t.envios.length, 0);
+  t.fechar(); assert.equal(t.players[4].pausas, 1);
+  t.desmontar();
+});
+
+test("áudio: repetir, mudar contexto, bloquear sessão e desmontar interrompem reprodução", async () => {
+  const t = montar(); t.abrir(); await t.concluir();
+  const tocar = () => t.nos().find((n) => n.props.className === "botaoAudioModal").props.onClick();
+  tocar(); tocar(); assert.equal(t.players[0].pausas, 1);
+  t.trocarProps({ dificuldade: "medio" }); assert.equal(t.players[1].pausas, 1);
+  await t.concluir(); tocar(); t.trocarProps({ audioBloqueado: true });
+  assert.equal(t.players[2].pausas, 1); tocar(); assert.equal(t.players.length, 3);
+  t.trocarProps({ audioBloqueado: false }); tocar(); t.desmontar();
+  assert.equal(t.players[3].pausas, 1); assert.equal(t.envios.length, 0);
+});
+
+for (const valor of [undefined, null, ""]) test(`áudio: ausência ${String(valor)} mantém jogo e seleção disponíveis`, async () => {
+  const t = montar((url) => ({ data: url.endsWith("/respostas")
+    ? respostas.map((r) => ({ ...r, audio: valor })) : { ...tarefa, audioEnunciado: valor } }));
+  t.abrir(); await t.concluir();
+  const amarelo = t.nos().find((n) => n.props.className === "botaoAudioModal");
+  assert.equal(amarelo.props.disabled, true); amarelo.props.onClick();
+  const azul = renderizarCardAudio(t.cards()[0].props);
+  assert.equal(azul.props.disabled, true); azul.props.onClick({ stopPropagation() {} });
+  assert.equal(t.sons.length, 0); assert.equal(t.envios.length, 0);
+  await t.cards()[0].props.onSelecionar(); assert.equal(t.envios.length, 1);
+  t.desmontar();
+});
+
+for (const falha of ["rejeição", "exceção play", "construtor"]) test(`áudio: ${falha} não quebra resposta nem jogo`, async () => {
+  const t = montar(undefined, undefined, {
+    audioConstrutorFalha: falha === "construtor",
+    audioPlay: () => { if (falha === "exceção play") throw new Error("Falha síncrona"); return Promise.reject(new Error("Arquivo ausente")); },
+  });
+  t.abrir(); await t.concluir();
+  t.nos().find((n) => n.props.className === "botaoAudioModal").props.onClick();
+  await t.concluir(); assert.equal(t.cards().length, 4); assert.equal(t.envios.length, 0);
+  await t.cards()[0].props.onSelecionar(); await t.concluir();
+  assert.equal(t.envios.length, 1); t.desmontar();
+});
+
+test("áudio: os 15 caminhos das fixtures existem em public, com case exato e conteúdo MP3", () => {
+  const caminhos = [tarefa, tarefaCortina, tarefaRoupa].map((t) => t.audioEnunciado)
+    .concat([...respostas, ...respostasCortina, ...respostasRoupa].map((r) => r.audio));
+  assert.equal(new Set(caminhos).size, 15);
+  for (const caminho of caminhos) {
+    let diretorio = path.resolve(__dirname, "../public");
+    for (const parte of caminho.slice(1).split("/")) {
+      assert.ok(fs.readdirSync(diretorio).includes(parte), caminho);
+      diretorio = path.join(diretorio, parte);
+    }
+    const dados = fs.readFileSync(diretorio);
+    assert.ok(dados.length > 1000, caminho);
+    assert.ok(dados.subarray(0, 3).toString() === "ID3" || (dados[0] === 0xff && (dados[1] & 0xe0) === 0xe0), caminho);
+  }
 });
